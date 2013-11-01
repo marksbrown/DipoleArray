@@ -3,7 +3,7 @@ Plotting functions for _dipolearray (requires matplotlib >= 1.1.0)
 '''
 
 from __future__ import division, print_function
-from numpy import pi, meshgrid, sin, cos, array
+from numpy import pi, meshgrid, sin, cos, array, ptp
 
 # Constants
 nm = 1e-9
