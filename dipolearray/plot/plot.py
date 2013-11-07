@@ -3,34 +3,44 @@ Plotting functions for _dipolearray (requires matplotlib >= 1.1.0)
 '''
 
 from __future__ import division, print_function
-from numpy import pi, meshgrid, sin, cos, array, ptp
+from numpy import pi, meshgrid, sin, cos, array, ptp, min, max
+import os
 
 # Constants
 nm = 1e-9
 Degrees = pi / 180
 
-def __PositionsOfPoints(lc, u1, u2):
+def savefig(name, fig, verbose=0, **kwargs):
     '''
-    Returns the (x,y) coordinates of points defined
-    by the lattice parameters : d1 (distance) ,d2 (distance),
-                                v1 (delta d1), v2 (delta d2) (optional)
-                                t1 (angle with x), t2 (angle with x)
+    Saves figure
+    
+    kwargs:
+    imagesavelocation : imagesavelocation
+    ext : extensions to save as and into
     '''
-    if len(lc) == 4:  # non-varying structure
-        d1, t1, d2, t2 = lc
-        x = u1 * d1 * cos(t1) + u2 * d2 * cos(t2)
-        y = u1 * d1 * sin(t1) + u2 * d2 * sin(t2)
-    elif len(lc) == 6:  # spatially varying structure
-        d1, v1, t1, d2, v2, t2 = lc
-        x = u1 * d1 * cos(t1) * (1 + u1*v1/d1) + \
-            u2 * d2 * cos(t2) * (1 + u2*v2/d2)
-        y = u1 * d1 * sin(t1) * (1 + u1*v1/d1) + \
-            u2 * d2 * sin(t2) * (1 + u2 * v2 / d2)
-    else:
-        print("Incorrect length of lattice definition")
-        return None
 
-    return x, y
+    imagesavelocation = kwargs.get('imagesavelocation',
+             os.path.join(os.path.expanduser('~'),'Desktop','images'))
+    
+    if not os.path.exists(imagesavelocation):
+        if verbose > 1:
+            print("Creating ImageSaveLocation directory")
+        os.mkdir(imagesavelocation)
+    
+    Ext = kwargs.get('ext', ['png', 'pdf', 'svg'])
+    
+    for ext in Ext:
+        savetopath = os.path.join(imagesavelocation, ext)
+        if not os.path.exists(savetopath):
+            if verbose > 1:
+                print("Creating savetopath directory")
+            os.mkdir(savetopath)
+
+        saveto = os.path.join(savetopath, name+"."+ext)
+
+        if verbose>0:        
+            print("Saving image to", saveto)
+        fig.savefig(saveto)
 
 def PlotLattice(axis, lc, N1, N2, verbose=0, **kwargs):
     '''
@@ -53,38 +63,45 @@ def PlotLattice(axis, lc, N1, N2, verbose=0, **kwargs):
     xlim, ylim : x, y limits
     '''
 
-    DipoleLength=kwargs.get('dipolelength',10*nm)
-    DipoleAngle=kwargs.get('dipoleangle',0*Degrees)
+    DipoleLength=kwargs.get('dipolelength', 50)
+    DipoleAngle=90-kwargs.get('dipoleangle', 45)
     Title=kwargs.get('title',"") 
-    xlim=kwargs.get('xlim',(0, 500))
-    ylim=kwargs.get('ylim',(0, 500)) 
-
+    limfactor=kwargs.get('limfactor',1.1)
+    divideby=kwargs.get('divideby',nm)
+    
     u1, u2 = meshgrid(range(*N1), range(*N2))  # grid of integers
 
     if verbose > 0:
         print("Number of Dipoles Generated",ptp(N1)*ptp(N2))
+        
+    if len(lc) == 4:
+        dx, tx, dy, ty = lc
+        dvary = 0
+        tvary = 0
+    elif len(lc) == 6:
+        dx, tx, dy, ty, dvary, tvary = lc
     
-    if verbose > 1:
-        print(u1, u2)
-    X, Y = __PositionsOfPoints(lc, u1, u2)
-
-    for px, py in zip(X, Y):
-        x = array(
-            [(px - DipoleLength) * cos(DipoleAngle) + py * sin(DipoleAngle),
-             (px + DipoleLength) * cos(DipoleAngle) + py * sin(DipoleAngle)])
-        y = array(
-            [-1 * (
-                px - DipoleLength) * sin(DipoleAngle) + py * cos(DipoleAngle),
-             -1 * (px + DipoleLength) * sin(DipoleAngle) + py * cos(DipoleAngle)])
-
-        axis.plot(x / nm, y / nm, 'k-')
-
+    xpos = lambda u, d, t : u * d * cos(t)
+    ypos = lambda u, d, t : u * d * sin(t)
+    
+    X = xpos(u1, dx, tx)+xpos(u2, dy, ty)+xpos(u1**2, dvary, tvary) 
+    Y = ypos(u1, dx, tx)+ypos(u2, dy, ty)+ypos(u2**2, dvary, tvary) 
+    
+    X /= divideby
+    Y /= divideby
+    
+    xlim = (min(X)-limfactor*min(X),max(X)+limfactor*min(X))
+    ylim = (min(Y)-limfactor*min(Y),max(Y)+limfactor*min(Y))
+    
+    axis.grid()
+    axis.scatter(X, Y, marker=(2,0,DipoleAngle), s=DipoleLength)
+    
     axis.set_xlabel("X Position (nm)")
     axis.set_ylabel("Y Position (nm)")
     axis.set_xlim(xlim)
     axis.set_ylim(ylim)
     axis.set_title(Title)
-    axis.grid()
+    axis.grid(True)
     return axis
 
 
