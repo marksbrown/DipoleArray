@@ -139,6 +139,7 @@ def structurefactor(q, N1, N2, lc, verbose=0):
     R = dstack(myplt.getpositions(N1, N2, lc))  # positions of each dipole
 
     amp = sum(exp(1j * dot(R, q)))
+    
     a1, b1 = amp.real, amp.imag
 
     F = (a1 ** 2 + b1 ** 2)

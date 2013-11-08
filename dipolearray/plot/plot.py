@@ -113,8 +113,6 @@ def PlotLattice(axis, lc, N1, N2, verbose=0, **kwargs):
     except AttributeError:
         axis.scatter(X,Y, marker=(2, 0, DipoleAngle), s=DipoleLength)
 
-    axis.scatter(X, Y, marker=(2, 0, DipoleAngle), s=DipoleLength)
-
     axis.set_xlabel("X Position (nm)")
     axis.set_ylabel("Y Position (nm)")
     axis.set_xlim(xlim)
