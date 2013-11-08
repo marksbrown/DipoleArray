@@ -1,3 +1,2 @@
-from dipolearray import *
-import plot as plot
-reload(plot)
+from .dipolearray import *
+from . import plot as plot
