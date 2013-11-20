@@ -108,10 +108,10 @@ def PlotLattice(axis, lc, N1, N2, verbose=0, **kwargs):
 
     axis.grid()
     try:
-        axis.scatter3D(X,Y,Z, marker=(2, 0, DipoleAngle), s=DipoleLength)
+        axis.scatter3D(X, Y, Z, marker=(2, 0, DipoleAngle), s=DipoleLength)
         axis.set_zlabel("Z Position (nm)")
     except AttributeError:
-        axis.scatter(X,Y, marker=(2, 0, DipoleAngle), s=DipoleLength)
+        axis.scatter(X, Y, marker=(2, 0, DipoleAngle), s=DipoleLength)
 
     axis.set_xlabel("X Position (nm)")
     axis.set_ylabel("Y Position (nm)")

@@ -13,7 +13,7 @@ from __future__ import division, print_function
 from numpy import meshgrid, cos, sin, pi, exp, real, imag, array, dot, shape, sum
 from numpy import random, cross, conj, dstack, issubdtype, ones, sqrt, linspace, ptp
 import os
-import plot as myplt #our plotting library
+from . import plot as _myplt  # our plotting library
 
 # Constants
 nm = 1e-9
@@ -23,7 +23,8 @@ mu0 = 4 * pi * 1e-7  # Permeability of free space
 Zzero = sqrt(mu0 / eps0)  # Impedance of free space
 
 
-def DirectionVector(theta=0*Degrees, phi=0*Degrees, amplitude=1, verbose=0):             
+def DirectionVector(
+        theta=0 * Degrees, phi=0 * Degrees, amplitude=1, verbose=0):
     '''
     Spherical coordinates (r,theta,phi) --> cartesian coordinates (x,y,z)
     '''
@@ -92,8 +93,8 @@ def GetDirectionCosine(adir, steps=400):
         return
 
 
-def DifferentialCrossSection(F, n0, n1, p, k, const=True, split=False, verbose=0):
-        
+def DifferentialCrossSection(
+        F, n0, n1, p, k, const=True, split=False, verbose=0):
     '''
     Differential cross section
 
@@ -136,10 +137,10 @@ def structurefactor(q, N1, N2, lc, verbose=0):
     N1, N2 : tuple defining number of dipoles in two vectors defined by
     lc : 2D XY plane lattice
     '''
-    R = dstack(myplt.getpositions(N1, N2, lc))  # positions of each dipole
+    R = dstack(_myplt.getpositions(N1, N2, lc))  # positions of each dipole
 
     amp = sum(exp(1j * dot(R, q)))
-    
+
     a1, b1 = amp.real, amp.imag
 
     F = (a1 ** 2 + b1 ** 2)
