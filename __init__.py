@@ -1,1 +1,1 @@
-from dipolearray import *
+from .dipolearray import *
