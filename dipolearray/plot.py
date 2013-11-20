@@ -7,6 +7,9 @@ from numpy import pi, ptp, min, max
 from numpy import invert, isnan
 import os
 from . import structuredefinition as _sd
+from . import dipolearray as da
+from matplotlib.pyplot import cm
+
 # Constants
 nm = 1e-9
 Degrees = pi / 180
@@ -117,3 +120,52 @@ def fetchmaxnum(x, y, z):
     anumz = max(z[invert(isnan(z))])
 
     return max([anumx, anumy, anumz])
+
+def GenerateFarFieldImage(n0, k, N1, N2, lc, p, steps, afig, axis, verbose=0):
+    '''
+    Generate 3D matplotlib (>= 1.30 required if you wish save the image as svg)
+    image of farfield pattern. 3 faces are plotted with the respective direction
+    cosines
+    '''
+    theta,phi = da.AnglesofHemisphere('all',steps)
+    alldirections = da.DirectionVector(theta,phi)
+        
+    F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k)
+        
+    dsdo = da.DifferentialCrossSection(F,n0,alldirections,p=p,k=k,const=False)
+    
+    adir = da.DirectionVector(theta,phi,dsdo)
+    maxnum = max(adir)
+    x = adir[...,0]/maxnum
+    y = adir[...,1]/maxnum
+    z = adir[...,2]/maxnum
+    
+    axis.plot_surface(x,y,z,alpha=0.2)
+    
+    tocube(axis)
+    
+    for adir in ['x','y','z']:
+        
+        theta,phi = da.AnglesofHemisphere(adir,steps)
+        alldirections = da.DirectionVector(theta,phi)
+        
+        dsdo = da.DifferentialCrossSection(F,n0,alldirections,p=p,k=k,const=False)
+        dsdo /= max(dsdo)
+        
+        ux,uy = da.GetDirectionCosine(adir,steps)
+        
+        if adir == 'x':
+            ctf = axis.contourf(dsdo,ux,uy,50,zdir=adir,cmap=cm.hot,offset=-1)
+        elif adir == 'y':
+            ctf = axis.contourf(ux,dsdo,uy,50,zdir=adir,cmap=cm.hot,offset=1) 
+        elif adir == 'z':
+            ctf = axis.contourf(ux,uy,dsdo,50,zdir=adir,cmap=cm.hot,offset=-1)
+        
+    
+    cb = afig.colorbar(ctf,ax=axis,use_gridspec=True,shrink=0.5)
+    cb.set_label("Scaled Absolute Electric Field Squared",size=15)
+    cb.set_ticks([0,0.25,0.5,0.75,1])
+    
+    afig.tight_layout()
+    
+    return

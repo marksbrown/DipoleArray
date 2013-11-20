@@ -11,8 +11,8 @@ factor and the resulting differential cross section.
 '''
 from __future__ import division, print_function
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum
-from numpy import cross, conj, dstack, issubdtype, ones, sqrt, linspace, ptp
-from . import structuredefinition as _sd
+from numpy import cross, conj, dstack, issubdtype, ones, sqrt, linspace
+from structuredefinition import *
 
 # Constants
 nm = 1e-9
@@ -129,24 +129,36 @@ def DifferentialCrossSection(
         )
 
 
-def structurefactor(q, N1, N2, lc, verbose=0):
+def OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=0):
+    '''
+    Calculates the structure factor over each incident direction
+    '''
+    R = dstack(getpositions(N1, N2, lc))  # positions of each dipole
+    divideby = (N1[1]-N1[0])*(N2[1]-N2[0])
+    
+    return array([[structurefactor(n0, n1, R, k, verbose=verbose)/divideby for n1 in row] 
+                         for row in alldirections])
+
+
+def structurefactor(n0, n1, R, k, verbose=0):
     '''
     The Structure Factor (eqn 10.19 Jackson)
 
-    q : (,3) scattering vector
-    N1, N2 : tuple defining number of dipoles in two vectors defined by
-    lc : 2D XY plane lattice
+    n0 : incident direction
+    n1 : outgoing direction
+    R : position of each dipole
+    k : incident wavelength
     '''
-    R = dstack(_sd.getpositions(N1, N2, lc))  # positions of each dipole
+    
+    q = k*(n0-n1)
+    
+    incidentphaseterm = IncidentPhaseArray(n0, R, k, verbose=verbose)
 
-    amp = sum(exp(1j * dot(R, q)))
+    amp = sum(exp(1j * dot(R, q)+1j*incidentphaseterm))
 
     a1, b1 = amp.real, amp.imag
 
-    F = (a1 ** 2 + b1 ** 2)
-    F /= (ptp(N1) * ptp(N2))
-
-    return F
+    return (a1 ** 2 + b1 ** 2)
 
 
 def DipoleDistribution(n1, p, k, const=False, verbose=0):
