@@ -30,7 +30,7 @@ def savefig(name, fig, verbose=0, **kwargs):
     if not os.path.exists(imagesavelocation):
         if verbose > 1:
             print("Creating ImageSaveLocation directory")
-        os.mkdir(imagesavelocation)
+        os.makedirs(imagesavelocation)
 
     Ext = kwargs.get('ext', ['png', 'pdf', 'svg'])
 
