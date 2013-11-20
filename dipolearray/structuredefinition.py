@@ -3,15 +3,17 @@ Definition(s) of dipole arrays
 '''
 
 from __future__ import division, print_function
-from numpy import array, arccos, arctan2, meshgrid, zeros, cos, sin, shape, dot
+from numpy import array, meshgrid, zeros, cos, sin, shape, dot
 
-def IncidentPhaseArray(n0, R, k, verbose=0,**kwargs):
+
+def IncidentPhaseArray(n0, R, k, verbose=0, **kwargs):
     '''
     Returns phase addition term due to incident wave
     '''
-    p0 = kwargs.get('intersection', array([0,0,0])) #planes cross at origin
-        
-    return k*(dot(R,n0)+dot(p0,n0))
+    p0 = kwargs.get('intersection', array([0, 0, 0]))  # planes cross at origin
+
+    return k * (dot(R, n0) + dot(p0, n0))
+
 
 def getpositions(N1, N2, lc):
     '''

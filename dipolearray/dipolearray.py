@@ -12,7 +12,7 @@ factor and the resulting differential cross section.
 from __future__ import division, print_function
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum
 from numpy import cross, conj, dstack, issubdtype, ones, sqrt, linspace
-from structuredefinition import *
+from .structuredefinition import *
 
 # Constants
 nm = 1e-9
@@ -134,10 +134,10 @@ def OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=0):
     Calculates the structure factor over each incident direction
     '''
     R = dstack(getpositions(N1, N2, lc))  # positions of each dipole
-    divideby = (N1[1]-N1[0])*(N2[1]-N2[0])
-    
-    return array([[structurefactor(n0, n1, R, k, verbose=verbose)/divideby for n1 in row] 
-                         for row in alldirections])
+    divideby = (N1[1] - N1[0]) * (N2[1] - N2[0])
+
+    return array([[structurefactor(n0, n1, R, k, verbose=verbose) / divideby for n1 in row]
+                  for row in alldirections])
 
 
 def structurefactor(n0, n1, R, k, verbose=0):
@@ -149,12 +149,12 @@ def structurefactor(n0, n1, R, k, verbose=0):
     R : position of each dipole
     k : incident wavelength
     '''
-    
-    q = k*(n0-n1)
-    
+
+    q = k * (n0 - n1)
+
     incidentphaseterm = IncidentPhaseArray(n0, R, k, verbose=verbose)
 
-    amp = sum(exp(1j * dot(R, q)+1j*incidentphaseterm))
+    amp = sum(exp(1j * dot(R, q) + 1j * incidentphaseterm))
 
     a1, b1 = amp.real, amp.imag
 
