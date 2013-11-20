@@ -3,9 +3,10 @@ Plotting functions for _dipolearray (requires matplotlib >= 1.1.0)
 '''
 
 from __future__ import division, print_function
-from numpy import pi, meshgrid, sin, cos, array, ptp, min, max, zeros, shape
+from numpy import pi, ptp, min, max
+from numpy import invert, isnan
 import os
-
+from . import structuredefinition as _sd
 # Constants
 nm = 1e-9
 Degrees = pi / 180
@@ -44,30 +45,6 @@ def savefig(name, fig, verbose=0, **kwargs):
         fig.savefig(saveto)
 
 
-def getpositions(N1, N2, lc):
-    '''
-    Returns cartesian position of an array of points defined by the lattice
-    _lc_ with min/max numbers defined by the tuples _N1_ and _N2_
-    '''
-    u1, u2 = meshgrid(range(*N1), range(*N2))  # grid of integers
-
-    if len(lc) == 4:
-        dx, tx, dy, ty = lc
-        dvary = 0
-        tvary = 0
-    elif len(lc) == 6:
-        dx, tx, dy, ty, dvary, tvary = lc
-
-    xpos = lambda u, d, t: u * d * cos(t)
-    ypos = lambda u, d, t: u * d * sin(t)
-
-    X = xpos(u1, dx, tx) + xpos(u2, dy, ty) + xpos(u1 ** 2, dvary, tvary)
-    Y = ypos(u1, dx, tx) + ypos(u2, dy, ty) + ypos(u2 ** 2, dvary, tvary)
-    Z = zeros(shape(X))
-
-    return X, Y, Z
-
-
 def PlotLattice(axis, lc, N1, N2, verbose=0, **kwargs):
     '''
     Plots given lattice on subplot using matplotlib
@@ -98,7 +75,7 @@ def PlotLattice(axis, lc, N1, N2, verbose=0, **kwargs):
     if verbose > 0:
         print("Number of Dipoles Generated", ptp(N1) * ptp(N2))
 
-    X, Y, Z = getpositions(N1, N2, lc)
+    X, Y, Z = _sd.getpositions(N1, N2, lc)
 
     X /= divideby
     Y /= divideby
@@ -140,46 +117,3 @@ def fetchmaxnum(x, y, z):
     anumz = max(z[invert(isnan(z))])
 
     return max([anumx, anumy, anumz])
-
-
-def ContourPlot3D(axis, x, y, z, filled=False, *args, **kwargs):
-    '''
-    Plots contour lines of data in 3D
-    '''
-    if filled == False:
-        ctr = axis.contour3D(x, y, z, *args, **kwargs)
-    elif filled == True:
-        ctr = axis.contourf3D(x, y, z, *args, **kwargs)
-    else:
-        print("Non bool!")
-        return None
-
-    axis.set_xlabel("x")
-    axis.set_ylabel("y")
-    axis.set_zlabel("z")
-
-    NegativeMaximumDeviation = 0
-    MaximumDeviation = 0
-    a, b = axis.get_xlim()
-    if a < NegativeMaximumDeviation:
-        NegativeMaximumDeviation = a
-    if b > MaximumDeviation:
-        MaximumDeviation = b
-    a, b = axis.get_zlim()
-    if a < NegativeMaximumDeviation:
-        NegativeMaximumDeviation = a
-    if b > MaximumDeviation:
-        MaximumDeviation = b
-    a, b = axis.get_ylim()
-    if a < NegativeMaximumDeviation:
-        NegativeMaximumDeviation = a
-    if b > MaximumDeviation:
-        MaximumDeviation = b
-
-    Deviation = (abs(NegativeMaximumDeviation), MaximumDeviation)[
-        abs(NegativeMaximumDeviation) < MaximumDeviation]
-    Deviation *= 1.1
-    axis.set_xlim(-Deviation, Deviation)
-    axis.set_ylim(-Deviation, Deviation)
-    axis.set_zlim(-Deviation, Deviation)
-    return ctr

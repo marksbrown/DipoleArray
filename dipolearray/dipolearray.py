@@ -10,10 +10,9 @@ of dipoles with a known Bravais lattice. The code calculates the structure
 factor and the resulting differential cross section.
 '''
 from __future__ import division, print_function
-from numpy import meshgrid, cos, sin, pi, exp, real, imag, array, dot, shape, sum
-from numpy import random, cross, conj, dstack, issubdtype, ones, sqrt, linspace, ptp
-import os
-from . import plot as _myplt  # our plotting library
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum
+from numpy import cross, conj, dstack, issubdtype, ones, sqrt, linspace, ptp
+from . import structuredefinition as _sd
 
 # Constants
 nm = 1e-9
@@ -21,6 +20,7 @@ Degrees = pi / 180
 eps0 = 8.85418782E-12  # permittivity of free space
 mu0 = 4 * pi * 1e-7  # Permeability of free space
 Zzero = sqrt(mu0 / eps0)  # Impedance of free space
+c = 3E8  # speed of light
 
 
 def DirectionVector(
@@ -137,7 +137,7 @@ def structurefactor(q, N1, N2, lc, verbose=0):
     N1, N2 : tuple defining number of dipoles in two vectors defined by
     lc : 2D XY plane lattice
     '''
-    R = dstack(_myplt.getpositions(N1, N2, lc))  # positions of each dipole
+    R = dstack(_sd.getpositions(N1, N2, lc))  # positions of each dipole
 
     amp = sum(exp(1j * dot(R, q)))
 
