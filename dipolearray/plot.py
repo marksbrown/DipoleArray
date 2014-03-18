@@ -70,7 +70,7 @@ def PlotLattice(axis, lc, N1, N2, verbose=0, **kwargs):
     '''
 
     DipoleLength = kwargs.get('dipolelength', 50)
-    DipoleAngle = 90 - kwargs.get('dipoleangle', 45)
+    DipoleAngle = 90 - kwargs.get('dipoleangle', 0)
     Title = kwargs.get('title', "")
     limfactor = kwargs.get('limfactor', 1.1)
     divideby = kwargs.get('divideby', nm)
@@ -122,7 +122,7 @@ def fetchmaxnum(x, y, z):
     return max([anumx, anumy, anumz])
 
 
-def GenerateFarFieldImage(n0, k, N1, N2, lc, p, steps, afig, axis, verbose=0):
+def GenerateFarFieldImage(n0, k, N1, N2, lc, p, steps, afig, axis, verbose=0, **kwargs):
     '''
     Generate 3D matplotlib (>= 1.30 required if you wish save the image as svg)
     image of farfield pattern. 3 faces are plotted with the respective direction
@@ -130,6 +130,9 @@ def GenerateFarFieldImage(n0, k, N1, N2, lc, p, steps, afig, axis, verbose=0):
     '''
     theta, phi = da.AnglesofHemisphere('all', steps)
     alldirections = da.DirectionVector(theta, phi)
+
+    N = kwargs.pop("N",50)
+    cmap = kwargs.pop("cmap",cm.hot)
 
     F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k)
 
@@ -172,28 +175,31 @@ def GenerateFarFieldImage(n0, k, N1, N2, lc, p, steps, afig, axis, verbose=0):
                 dsdo,
                 ux,
                 uy,
-                50,
+                N,
                 zdir=adir,
-                cmap=cm.hot,
-                offset=-1)
+                cmap=cmap,
+                offset=-1,
+                **kwargs)
         elif adir == 'y':
             ctf = axis.contourf(
                 ux,
                 dsdo,
                 uy,
-                50,
+                N,
                 zdir=adir,
-                cmap=cm.hot,
-                offset=1)
+                cmap=cmap,
+                offset=1,
+                **kwargs)
         elif adir == 'z':
             ctf = axis.contourf(
                 ux,
                 uy,
                 dsdo,
-                50,
+                N,
                 zdir=adir,
-                cmap=cm.hot,
-                offset=-1)
+                cmap=cmap,
+                offset=-1,
+                **kwargs)
 
     cb = afig.colorbar(ctf, ax=axis, use_gridspec=True, shrink=0.5)
     cb.set_label("Scaled Absolute Electric Field Squared", size=15)
@@ -204,8 +210,7 @@ def GenerateFarFieldImage(n0, k, N1, N2, lc, p, steps, afig, axis, verbose=0):
     return
 
 
-def FarFieldWithDipoleArray(
-        n0, k, N1, N2, lc, p, steps, fig, ax1, ax2, ax3, verbose=0):
+def FarFieldWithDipoleArray(n0, k, N1, N2, lc, p, steps, fig, ax1, ax2, ax3, verbose=0):
     '''
     Farfield plot (similar GenerateFarFieldImage) except we plot on three distinct axes
     '''
