@@ -15,6 +15,16 @@ from numpy import cross, conj, dstack, ones, sqrt, linspace
 from collections import Iterable
 from .structuredefinition import *
 
+def unitvectors(theta=0, phi=0):
+    """
+    Spherical unit vectors as cartesian unit vectors
+    """
+    r = array((sin(theta)*cos(phi), sin(theta)*sin(phi), ones(shape(phi))*cos(theta)))
+    th = array((cos(theta)*cos(phi), cos(theta)*sin(phi), -1*ones(shape(phi))*sin(theta)))
+    ph = array((-1*ones(shape(theta))*sin(phi), ones(shape(theta))*cos(phi), zeros(shape(theta))*zeros(shape(phi))))
+    
+    return r, th, ph
+
 def DirectionVector(theta=0, phi=0, amplitude=1, verbose=0):
     """
     Spherical coordinates (r,theta,phi) --> cartesian coordinates (x,y,z)
@@ -178,3 +188,28 @@ def DipoleDistribution(n1, p, k, const=False, verbose=0):
     mag = lambda mat: sum(mat*conj(mat), axis=2)
 
     return real(constterm*mag(a))
+
+def SpherePolarisability(episilon, epsilon_media, radius):
+    '''
+    Equation (10.5) from Jackson
+    '''
+    eps0 = 8.85418782E-12
+    return 4 * pi * ((episilon - epsilon_media) / (episilon + 2*epsilon_media)) * radius ** 3
+
+def induceddipolemoment(epsilon_media, alpha, E0, Flag=False, **kwargs):
+    """
+    Calculate the induced dipole moment due to an incident plane wave
+    assumes no time or position variation unless specified
+    """
+    c = 3E8
+    nm = 1e-9
+    
+    wavevector = kwargs.get('wavevector', [0, 0, (2*pi)/(420*nm)])
+    position = kwargs.get('position', 0)
+    omega = kwargs.get('frequency', (2*pi*c)/(420*nm))
+    time = kwargs.get('time', 0)
+    
+    if Flag:
+        return epsilon_media*alpha*E0*exp(1j*dot(wavevector, position))*exp(-1j*omega*time)
+    else:
+        return epsilon_media*alpha*E0
