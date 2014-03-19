@@ -106,12 +106,16 @@ def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
     
     steps = kwargs.pop('steps', 200)
     verbose = kwargs.pop('verbose', 0)
+    dist = kwargs.pop('dist', 'normal')
     
     theta, phi = da.AnglesofHemisphere('all', steps)
     alldirections = da.DirectionVector(theta, phi, verbose=verbose)    
     F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=verbose)
-
-    dsdo = da.DifferentialCrossSection(F, n0, alldirections, p=p,
+    
+    if dist == 'analytical':
+        dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=False)
+    else:
+        dsdo = da.DifferentialCrossSection(F, n0, alldirections, p=p,
                                         k=k, const=False, verbose=verbose)
 
     adir = da.DirectionVector(theta, phi, dsdo)
@@ -144,6 +148,7 @@ def Farfield3DDirectionCosines(n0, k, N1, N2, lc, p, axis, **kwargs):
     steps = kwargs.pop('steps', 200)
     verbose = kwargs.pop('verbose', 0)
     N = kwargs.pop("N",50)
+    dist = kwargs.pop('dist', 'normal')
     
     for adir in ['x', 'y', 'z']:
 
@@ -152,8 +157,11 @@ def Farfield3DDirectionCosines(n0, k, N1, N2, lc, p, axis, **kwargs):
 
         F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k)
                 
-        dsdo = da.DifferentialCrossSection(F, n0, alldirections, 
-                                          p=p, k=k, const=False)
+        if dist == 'analytical':
+            dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=False)
+        else:
+            dsdo = da.DifferentialCrossSection(F, n0, alldirections, 
+                                              p=p, k=k, const=False)
         dsdo /= max(dsdo)
 
         ux, uy = da.GetDirectionCosine(adir, steps)
