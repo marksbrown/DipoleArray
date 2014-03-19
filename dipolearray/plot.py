@@ -108,11 +108,11 @@ def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
     verbose = kwargs.pop('verbose', 0)
     
     theta, phi = da.AnglesofHemisphere('all', steps)
-    alldirections = da.DirectionVector(theta, phi)    
-    F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k)
+    alldirections = da.DirectionVector(theta, phi, verbose=verbose)    
+    F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=verbose)
 
     dsdo = da.DifferentialCrossSection(F, n0, alldirections, p=p,
-                                        k=k, const=False)
+                                        k=k, const=False, verbose=verbose)
 
     adir = da.DirectionVector(theta, phi, dsdo)
     maxnum = max(adir)
