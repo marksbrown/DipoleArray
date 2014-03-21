@@ -6,7 +6,7 @@ from __future__ import division, print_function
 from numpy import array, meshgrid, zeros, cos, sin, shape, dot
 
 
-def IncidentPhaseArray(n0, R, k, verbose=0, **kwargs):
+def incident_phase_addition(n0, R, k, verbose=0, **kwargs):
     '''
     Returns phase addition term due to incident wave
     '''
@@ -15,7 +15,7 @@ def IncidentPhaseArray(n0, R, k, verbose=0, **kwargs):
     return k * (dot(R, n0) + dot(p0, n0))
 
 
-def getpositions(N1, N2, lc):
+def periodic_lattice_positions(N1, N2, lc):
     '''
     Returns cartesian position of an array of points defined by the lattice
     _lc_ with min/max numbers defined by the tuples _N1_ and _N2_

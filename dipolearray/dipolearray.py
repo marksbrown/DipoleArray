@@ -15,7 +15,7 @@ from numpy import cross, conj, dstack, ones, sqrt, linspace, newaxis, arccos, ar
 from collections import Iterable
 from .structuredefinition import *
 
-def unitvectors(theta=0, phi=0):
+def spherical_unit_vectors(theta=0, phi=0):
     """
     Spherical unit vectors as cartesian unit vectors
     """
@@ -31,7 +31,7 @@ def unitvectors(theta=0, phi=0):
     
     return r, th, ph
 
-def DirectionVector(theta=0, phi=0, amplitude=1, verbose=0):
+def radial_direction_vector(theta=0, phi=0, amplitude=1, verbose=0):
     """
     returns r unit vector in cartesian coordinates
     """    
@@ -40,33 +40,8 @@ def DirectionVector(theta=0, phi=0, amplitude=1, verbose=0):
                   amplitude*sin(theta)*sin(phi),
                   amplitude*ones(shape(phi))*cos(theta))).T
 
-#def DirectionVector(theta=0, phi=0, amplitude=1, verbose=0):
-#    """
-#    Spherical coordinates (r,theta,phi) --> cartesian coordinates (x,y,z)
-#    """
-#    x = amplitude*sin(theta)*cos(phi)
-#    y = amplitude*sin(theta)*sin(phi)
 
-#    if not isinstance(theta, Iterable) and not isinstance(phi, Iterable):
-#        return array((x, y, amplitude*cos(theta)))
-
-#    if isinstance(theta, Iterable):
-#        z = amplitude*cos(theta)
-#    else:
-#        z = amplitude*cos(theta)*ones(shape(x))
-#        
-#    if verbose > 1:
-#        print("x", x)
-#        print("y", y)
-#        print("z", z)
-
-#    if verbose > 0:
-#        print(shape(x), shape(y), shape(z))
-
-#    return dstack([x, y, z])
-
-
-def AnglesofHemisphere(adir, steptheta=400, stepphi=400):
+def angles_of_hemisphere(adir, steptheta=400, stepphi=400):
     """
     theta and phi ranges for hemispheres in 'x', 'y', 'z' direction
     ---
@@ -95,12 +70,12 @@ def AnglesofHemisphere(adir, steptheta=400, stepphi=400):
     return meshgrid(Theta, Phi)
 
 
-def GetDirectionCosine(adir, steptheta=400, stepphi=400):
+def direction_cosine(adir, steptheta=400, stepphi=400):
     """
     Direction cosines for cartesian unit vector 'x', 'y' or 'z' defined
     for theta and phi using _AnglesOfHemisphere_
     """
-    theta, phi = AnglesofHemisphere(adir, steptheta=steptheta, stepphi=stepphi)
+    theta, phi = angles_of_hemisphere(adir, steptheta=steptheta, stepphi=stepphi)
 
     if adir == "x":
         return sin(phi)*sin(theta), cos(theta)  # y,z
@@ -115,7 +90,7 @@ def GetDirectionCosine(adir, steptheta=400, stepphi=400):
         return
 
 
-def DifferentialCrossSection(F, n1, p, k, const=True, split=False, verbose=0):
+def differential_crosssection_single(F, n1, p, k, const=True, split=False, verbose=0):
     """
     Differential cross section
 
@@ -137,7 +112,7 @@ def DifferentialCrossSection(F, n1, p, k, const=True, split=False, verbose=0):
     theta = arccos(n1[...,2])
     phi = arctan2(n1[...,1], n1[...,0])
 
-    r, theta, phi = unitvectors(theta, phi)
+    r, theta, phi = spherical_unit_vectors(theta, phi)
 
     if split:
         return constterm*dot(theta, p)**2, constterm*dot(phi, p)**2
@@ -145,14 +120,42 @@ def DifferentialCrossSection(F, n1, p, k, const=True, split=False, verbose=0):
         return constterm*dot(theta, p)**2 + constterm*dot(phi, p)**2
 
 
+def differential_crossection_volume(n0, p, k, N1, N2, lc, adir, **kwargs):
+    """
+    Calculate the differential scattering cross section
+
+    ---args--
+    n0 - incident direction
+    p - induced dipole moment
+    N1, N2 - numbers of scatterers in X, Y
+    lc - lattice
+    adir - direction of interest
+    """
+
+    steptheta = kwargs.pop('steptheta', 400)
+    stepphi = kwargs.pop('stepphi', 200)
+    verbose = kwargs.pop('verbose', 0)
+    dist = kwargs.pop('dist', 'normal')
+    const = kwargs.get('const', False)
+
+    theta, phi = angles_of_hemisphere(adir, steptheta=steptheta, stepphi=stepphi)
+    alldirections = radial_direction_vector(theta, phi, verbose=verbose)
+
+    if dist == 'analytical':
+        dsdo = electric_dipole_dpdo(alldirections, p=p, k=k, const=const).T
+    else:
+        F = structure_factor_volume(alldirections, n0, N1, N2, lc, k, verbose=verbose)
+        dsdo = differential_crosssection_single(F, alldirections, p=p,
+                                        k=k, const=const, verbose=verbose)
+
+    return theta, phi, dsdo
 
 
-
-def OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=0):
+def structure_factor_volume(alldirections, n0, N1, N2, lc, k, verbose=0):
     """
     Calculates the structure factor over each incident direction
     """
-    R = dstack(getpositions(N1, N2, lc))  # positions of each dipole
+    R = dstack(periodic_lattice_positions(N1, N2, lc))  # positions of each dipole
     divideby = (N1[1] - N1[0])*(N2[1] - N2[0])
     #divdeby = ptp(N1)/ptp(N2)
 
@@ -162,11 +165,11 @@ def OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=0):
     if verbose > 0:
         print("shape of all directions", shape(alldirections))    
     
-    return array([[structurefactor(n0, n1, R, k, verbose=verbose)/divideby 
+    return array([[structure_factor_single(n0, n1, R, k, verbose=verbose)/divideby
             for n1 in row] for row in alldirections])
 
 
-def structurefactor(n0, n1, R, k, verbose=0):
+def structure_factor_single(n0, n1, R, k, verbose=0):
     """
     The Structure Factor (eqn 10.19 Jackson)
 
@@ -178,7 +181,7 @@ def structurefactor(n0, n1, R, k, verbose=0):
     
     q = k*(n0[...,newaxis] - n1)
     
-    incidentphaseterm = IncidentPhaseArray(n0, R, k, verbose=verbose)
+    incidentphaseterm = incident_phase_addition(n0, R, k, verbose=verbose)
 
     amp = sum(exp(1j*dot(R, q) + 1j*incidentphaseterm))
 
@@ -187,7 +190,7 @@ def structurefactor(n0, n1, R, k, verbose=0):
     return (a1 ** 2 + b1 ** 2)
 
 
-def DipoleDistribution(n1, p, k, const=False, verbose=0):
+def electric_dipole_dpdo(n1, p, k, const=False, verbose=0):
     """
     Power per unit solid angle for an electric dipole (eqn 9.22 Jackson)
     """
@@ -209,14 +212,14 @@ def DipoleDistribution(n1, p, k, const=False, verbose=0):
 
     return real(constterm*mag(a))
 
-def SpherePolarisability(episilon, epsilon_media, radius):
+def polarisability_sphere(episilon, epsilon_media, radius):
     '''
     Equation (10.5) from Jackson
     '''
     eps0 = 8.85418782E-12
     return 4 * pi * ((episilon - epsilon_media) / (episilon + 2*epsilon_media)) * radius ** 3
 
-def induceddipolemoment(epsilon_media, alpha, E0, Flag=False, **kwargs):
+def induced_dipole_moment(epsilon_media, alpha, E0, Flag=False, **kwargs):
     """
     Calculate the induced dipole moment due to an incident plane wave
     assumes no time or position variation unless specified

@@ -7,7 +7,7 @@ from numpy import pi, ptp, min, max, array
 from numpy import invert, isnan, shape
 from . import dipolearray as da
 
-def PlotLattice(axis, lc, N1, N2, **kwargs):
+def plot_lattice(axis, lc, N1, N2, **kwargs):
     """
     Plots given Bravais lattice
     
@@ -36,7 +36,7 @@ def PlotLattice(axis, lc, N1, N2, **kwargs):
     if verbose > 0:
         print("Number of Dipoles Generated", ptp(N1) * ptp(N2))
 
-    X, Y, Z = da.getpositions(N1, N2, lc)
+    X, Y, Z = da.periodic_lattice_positions(N1, N2, lc)
 
     X /= divideby
     Y /= divideby
@@ -62,7 +62,7 @@ def PlotLattice(axis, lc, N1, N2, **kwargs):
     return axis
 
 
-def tocube(axis, cubeedge=1, size=20):
+def to_cube(axis, cubeedge=1, size=20):
     """
     Sets 3D axis to cube
     """
@@ -74,7 +74,7 @@ def tocube(axis, cubeedge=1, size=20):
     axis.set_zlim(-cubeedge, cubeedge)
 
 
-def fetchmaxnum(x, y, z):
+def fetch_max_dimension(x, y, z):
     """
     Returns maximum dimension allowing us to scale sensibly
     """
@@ -85,39 +85,9 @@ def fetchmaxnum(x, y, z):
     return max([anumx, anumy, anumz])
 
 
-def DifferentialCrossSection(n0, p, k, N1, N2, lc, adir, **kwargs):
-    """
-    Calculate the differential scattering cross section
-
-    ---args--
-    n0 - incident direction
-    p - induced dipole moment
-    N1, N2 - numbers of scatterers in X, Y
-    lc - lattice
-    adir - direction of interest
-    """
-
-    steptheta = kwargs.pop('steptheta', 400)
-    stepphi = kwargs.pop('stepphi', 200)
-    verbose = kwargs.pop('verbose', 0)
-    dist = kwargs.pop('dist', 'normal')
-    const = kwargs.get('const', False)
-
-    theta, phi = da.AnglesofHemisphere(adir, steptheta=steptheta, stepphi=stepphi)
-    alldirections = da.DirectionVector(theta, phi, verbose=verbose)
-
-    if dist == 'analytical':
-        dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=const).T
-    else:
-        F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=verbose)
-        dsdo = da.DifferentialCrossSection(F, alldirections, p=p,
-                                        k=k, const=const, verbose=verbose)
-
-    return theta, phi, dsdo
 
 
-
-def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
+def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     """
     Generate 3D matplotlib (>= 1.30 required if you wish save the image as svg)
     image of farfield pattern. 3 faces are plotted with the respective direction
@@ -142,10 +112,10 @@ def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
     dist = kwargs.pop('dist', 'normal')
     const = kwargs.pop('const', False)
     
-    theta, phi, dsdo = DifferentialCrossSection(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
+    theta, phi, dsdo = da.differential_crossection_volume(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
                                                 stepphi=stepphi, const=const, dist=dist, verbose=verbose)
     
-    adir = da.DirectionVector(theta, phi, dsdo)
+    adir = da.radial_direction_vector(theta, phi, dsdo)
     maxnum = max(adir)
     x = adir[..., 0] / maxnum
     y = adir[..., 1] / maxnum
@@ -153,11 +123,11 @@ def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
 
     axis.plot_surface(x, y, z, alpha=0.2)
 
-    tocube(axis)
+    to_cube(axis)
 
     return axis
 
-def Farfield3DDirectionCosines(n0, k, N1, N2, lc, p, axis, **kwargs):
+def plot_farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     """
     Generate 3D image of direction cosines of farfield pattern due to
     dipole array.
@@ -179,12 +149,12 @@ def Farfield3DDirectionCosines(n0, k, N1, N2, lc, p, axis, **kwargs):
     const = kwargs.pop('const', False)
 
     for adir in ['x', 'y', 'z']:
-        theta, phi, dsdo = DifferentialCrossSection(n0, p, k, N1, N2, lc, adir, steptheta=steps,
+        theta, phi, dsdo = da.differential_crossection_volume(n0, p, k, N1, N2, lc, adir, steptheta=steps,
                                                 stepphi=steps, const=const, dist=dist, verbose=verbose)
 
         dsdo /= max(dsdo)
 
-        ux, uy = da.GetDirectionCosine(adir, steptheta=steps, stepphi=steps)
+        ux, uy = da.direction_cosine(adir, steptheta=steps, stepphi=steps)
 
         if adir == 'x':
             ctf = axis.contourf(dsdo, ux, uy, N, 
