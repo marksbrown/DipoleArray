@@ -3,9 +3,12 @@ Plotting functions for dipolearray (requires matplotlib >= 1.1.0)
 """
 
 from __future__ import division, print_function
-from numpy import pi, ptp, min, max, array
-from numpy import invert, isnan, shape
+
+from numpy import ptp, min, max
+from numpy import invert, isnan
+
 from . import dipolearray as da
+
 
 def plot_lattice(axis, lc, N1, N2, **kwargs):
     """
@@ -43,15 +46,15 @@ def plot_lattice(axis, lc, N1, N2, **kwargs):
 
     xlim = (min(X) - limfactor * min(X), max(X) + limfactor * min(X))
     ylim = (min(Y) - limfactor * min(Y), max(Y) + limfactor * min(Y))
-    
+
     ##If we pass a 3D object we will plot correctly implicitly
     try:
         axis.scatter3D(X, Y, Z, marker=(2, 0, DipoleAngle),
-                         s=DipoleLength, **kwargs)
+                       s=DipoleLength, **kwargs)
         axis.set_zlabel("Z Position (nm)")
     except AttributeError:
-        axis.scatter(X, Y, marker=(2, 0, DipoleAngle), 
-                        s=DipoleLength, **kwargs)
+        axis.scatter(X, Y, marker=(2, 0, DipoleAngle),
+                     s=DipoleLength, **kwargs)
 
     axis.set_xlabel("X Position (nm)")
     axis.set_ylabel("Y Position (nm)")
@@ -85,8 +88,6 @@ def fetch_max_dimension(x, y, z):
     return max([anumx, anumy, anumz])
 
 
-
-
 def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     """
     Generate 3D matplotlib (>= 1.30 required if you wish save the image as svg)
@@ -111,10 +112,10 @@ def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     verbose = kwargs.pop('verbose', 0)
     dist = kwargs.pop('dist', 'normal')
     const = kwargs.pop('const', False)
-    
+
     theta, phi, dsdo = da.differential_crossection_volume(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
-                                                stepphi=stepphi, const=const, dist=dist, verbose=verbose)
-    
+                                                          stepphi=stepphi, const=const, dist=dist, verbose=verbose)
+
     adir = da.radial_direction_vector(theta, phi, dsdo)
     maxnum = max(adir)
     x = adir[..., 0] / maxnum
@@ -126,6 +127,7 @@ def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     to_cube(axis)
 
     return axis
+
 
 def plot_farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     """
@@ -142,29 +144,29 @@ def plot_farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     --Kwargs--
     verbose : verbosity control
     """
-    steps = kwargs.pop('steps', 100) #square array must be square!
+    steps = kwargs.pop('steps', 100)  #square array must be square!
     verbose = kwargs.pop('verbose', 0)
-    N = kwargs.pop("N",50)
+    N = kwargs.pop("N", 50)
     dist = kwargs.pop('dist', 'normal')
     const = kwargs.pop('const', False)
 
     for adir in ['x', 'y', 'z']:
         theta, phi, dsdo = da.differential_crossection_volume(n0, p, k, N1, N2, lc, adir, steptheta=steps,
-                                                stepphi=steps, const=const, dist=dist, verbose=verbose)
+                                                              stepphi=steps, const=const, dist=dist, verbose=verbose)
 
         dsdo /= max(dsdo)
 
         ux, uy = da.direction_cosine(adir, steptheta=steps, stepphi=steps)
 
         if adir == 'x':
-            ctf = axis.contourf(dsdo, ux, uy, N, 
-                zdir=adir, offset=-1, **kwargs)
+            ctf = axis.contourf(dsdo, ux, uy, N,
+                                zdir=adir, offset=-1, **kwargs)
         elif adir == 'y':
             ctf = axis.contourf(ux, dsdo, uy, N,
-                zdir=adir, offset=1, **kwargs)
+                                zdir=adir, offset=1, **kwargs)
         elif adir == 'z':
             ctf = axis.contourf(ux, uy, dsdo, N,
-                zdir=adir, offset=-1, **kwargs)
+                                zdir=adir, offset=-1, **kwargs)
 
     cb = axis.figure.colorbar(ctf, ax=axis, use_gridspec=True, shrink=0.5)
     cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
