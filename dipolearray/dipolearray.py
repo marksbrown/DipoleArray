@@ -95,12 +95,12 @@ def AnglesofHemisphere(adir, steptheta=400, stepphi=400):
     return meshgrid(Theta, Phi)
 
 
-def GetDirectionCosine(adir, steps=400):
+def GetDirectionCosine(adir, steptheta=400, stepphi=400):
     """
     Direction cosines for cartesian unit vector 'x', 'y' or 'z' defined
     for theta and phi using _AnglesOfHemisphere_
     """
-    theta, phi = AnglesofHemisphere(adir, steps)
+    theta, phi = AnglesofHemisphere(adir, steptheta=steptheta, stepphi=stepphi)
 
     if adir == "x":
         return sin(phi)*sin(theta), cos(theta)  # y,z
@@ -143,6 +143,10 @@ def DifferentialCrossSection(F, n1, p, k, const=True, split=False, verbose=0):
         return constterm*dot(theta, p)**2, constterm*dot(phi, p)**2
     else:
         return constterm*dot(theta, p)**2 + constterm*dot(phi, p)**2
+
+
+
+
 
 def OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=0):
     """

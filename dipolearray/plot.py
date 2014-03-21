@@ -85,6 +85,38 @@ def fetchmaxnum(x, y, z):
     return max([anumx, anumy, anumz])
 
 
+def DifferentialCrossSection(n0, p, k, N1, N2, lc, adir, **kwargs):
+    """
+    Calculate the differential scattering cross section
+
+    ---args--
+    n0 - incident direction
+    p - induced dipole moment
+    N1, N2 - numbers of scatterers in X, Y
+    lc - lattice
+    adir - direction of interest
+    """
+
+    steptheta = kwargs.pop('steptheta', 400)
+    stepphi = kwargs.pop('stepphi', 200)
+    verbose = kwargs.pop('verbose', 0)
+    dist = kwargs.pop('dist', 'normal')
+    const = kwargs.get('const', False)
+
+    theta, phi = da.AnglesofHemisphere(adir, steptheta=steptheta, stepphi=stepphi)
+    alldirections = da.DirectionVector(theta, phi, verbose=verbose)
+
+    if dist == 'analytical':
+        dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=const).T
+    else:
+        F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=verbose)
+        dsdo = da.DifferentialCrossSection(F, alldirections, p=p,
+                                        k=k, const=const, verbose=verbose)
+
+    return theta, phi, dsdo
+
+
+
 def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
     """
     Generate 3D matplotlib (>= 1.30 required if you wish save the image as svg)
@@ -108,18 +140,12 @@ def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
     stepphi = kwargs.pop('stepphi', 200)
     verbose = kwargs.pop('verbose', 0)
     dist = kwargs.pop('dist', 'normal')
+    const = kwargs.pop('const', False)
     
-    theta, phi = da.AnglesofHemisphere('all', steptheta=steptheta, stepphi=stepphi)
-    alldirections = da.DirectionVector(theta, phi, verbose=verbose)    
+    theta, phi, dsdo = DifferentialCrossSection(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
+                                                stepphi=stepphi, const=const, dist=dist, verbose=verbose)
     
-    if dist == 'analytical':
-        dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=False).T
-    else:
-        F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=verbose)
-        dsdo = da.DifferentialCrossSection(F, alldirections, p=p,
-                                        k=k, const=False, verbose=verbose)
-    
-    adir = da.DirectionVector(theta, phi, dsdo) #that pesky transpose operation is important!
+    adir = da.DirectionVector(theta, phi, dsdo)
     maxnum = max(adir)
     x = adir[..., 0] / maxnum
     y = adir[..., 1] / maxnum
@@ -146,26 +172,19 @@ def Farfield3DDirectionCosines(n0, k, N1, N2, lc, p, axis, **kwargs):
     --Kwargs--
     verbose : verbosity control
     """
-    steps = kwargs.pop('steps', 200)
+    steps = kwargs.pop('steps', 100) #square array must be square!
     verbose = kwargs.pop('verbose', 0)
     N = kwargs.pop("N",50)
     dist = kwargs.pop('dist', 'normal')
-    
+    const = kwargs.pop('const', False)
+
     for adir in ['x', 'y', 'z']:
+        theta, phi, dsdo = DifferentialCrossSection(n0, p, k, N1, N2, lc, adir, steptheta=steps,
+                                                stepphi=steps, const=const, dist=dist, verbose=verbose)
 
-        theta, phi = da.AnglesofHemisphere(adir, steps)
-        alldirections = da.DirectionVector(theta, phi)
-
-        F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k)
-                
-        if dist == 'analytical':
-            dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=False)
-        else:
-            dsdo = da.DifferentialCrossSection(F, n0, alldirections, 
-                                              p=p, k=k, const=False)
         dsdo /= max(dsdo)
 
-        ux, uy = da.GetDirectionCosine(adir, steps)
+        ux, uy = da.GetDirectionCosine(adir, steptheta=steps, stepphi=steps)
 
         if adir == 'x':
             ctf = axis.contourf(dsdo, ux, uy, N, 
