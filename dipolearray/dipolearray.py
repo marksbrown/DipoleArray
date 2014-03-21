@@ -11,7 +11,7 @@ factor and the resulting differential cross section.
 """
 from __future__ import division, print_function
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum
-from numpy import cross, conj, dstack, ones, sqrt, linspace
+from numpy import cross, conj, dstack, ones, sqrt, linspace, newaxis, arccos, arctan2
 from collections import Iterable
 from .structuredefinition import *
 
@@ -19,39 +19,54 @@ def unitvectors(theta=0, phi=0):
     """
     Spherical unit vectors as cartesian unit vectors
     """
-    r = array((sin(theta)*cos(phi), sin(theta)*sin(phi), ones(shape(phi))*cos(theta)))
-    th = array((cos(theta)*cos(phi), cos(theta)*sin(phi), -1*ones(shape(phi))*sin(theta)))
-    ph = array((-1*ones(shape(theta))*sin(phi), ones(shape(theta))*cos(phi), zeros(shape(theta))*zeros(shape(phi))))
+    r = array((sin(theta)*cos(phi),
+               sin(theta)*sin(phi),
+               ones(shape(phi))*cos(theta))).T
+    th = array((cos(theta)*cos(phi),
+                cos(theta)*sin(phi),
+                -1*ones(shape(phi))*sin(theta))).T
+    ph = array((-1*ones(shape(theta))*sin(phi),
+                ones(shape(theta))*cos(phi),
+                zeros(shape(theta))*zeros(shape(phi)))).T
     
     return r, th, ph
 
 def DirectionVector(theta=0, phi=0, amplitude=1, verbose=0):
     """
-    Spherical coordinates (r,theta,phi) --> cartesian coordinates (x,y,z)
-    """
-    x = amplitude*sin(theta)*cos(phi)
-    y = amplitude*sin(theta)*sin(phi)
+    returns r unit vector in cartesian coordinates
+    """    
 
-    if not isinstance(theta, Iterable) and not isinstance(phi, Iterable):
-        return array((x, y, amplitude*cos(theta)))
+    return array((amplitude*sin(theta)*cos(phi),
+                  amplitude*sin(theta)*sin(phi),
+                  amplitude*ones(shape(phi))*cos(theta))).T
 
-    if isinstance(theta, Iterable):
-        z = amplitude*cos(theta)
-    else:
-        z = amplitude*cos(theta)*ones(shape(x))
-        
-    if verbose > 1:
-        print("x", x)
-        print("y", y)
-        print("z", z)
+#def DirectionVector(theta=0, phi=0, amplitude=1, verbose=0):
+#    """
+#    Spherical coordinates (r,theta,phi) --> cartesian coordinates (x,y,z)
+#    """
+#    x = amplitude*sin(theta)*cos(phi)
+#    y = amplitude*sin(theta)*sin(phi)
 
-    if verbose > 0:
-        print(shape(x), shape(y), shape(z))
+#    if not isinstance(theta, Iterable) and not isinstance(phi, Iterable):
+#        return array((x, y, amplitude*cos(theta)))
 
-    return dstack([x, y, z])
+#    if isinstance(theta, Iterable):
+#        z = amplitude*cos(theta)
+#    else:
+#        z = amplitude*cos(theta)*ones(shape(x))
+#        
+#    if verbose > 1:
+#        print("x", x)
+#        print("y", y)
+#        print("z", z)
+
+#    if verbose > 0:
+#        print(shape(x), shape(y), shape(z))
+
+#    return dstack([x, y, z])
 
 
-def AnglesofHemisphere(adir, steps=400):
+def AnglesofHemisphere(adir, steptheta=400, stepphi=400):
     """
     theta and phi ranges for hemispheres in 'x', 'y', 'z' direction
     ---
@@ -62,17 +77,17 @@ def AnglesofHemisphere(adir, steps=400):
     Degrees = pi/180
 
     if adir == 'x':
-        Theta = linspace(0, 180*Degrees, steps)
-        Phi = linspace(-90*Degrees, 90*Degrees, steps)
+        Theta = linspace(0, 180*Degrees, steptheta)
+        Phi = linspace(-90*Degrees, 90*Degrees, stepphi)
     elif adir == 'y':
-        Theta = linspace(0, 180*Degrees, steps)
-        Phi = linspace(0, 180*Degrees, steps)
+        Theta = linspace(0, 180*Degrees, steptheta)
+        Phi = linspace(0, 180*Degrees, stepphi)
     elif adir == 'z':
-        Theta = linspace(0, 90*Degrees, steps)
-        Phi = linspace(0, 360*Degrees, steps)
+        Theta = linspace(0, 90*Degrees, steptheta)
+        Phi = linspace(0, 360*Degrees, stepphi)
     elif adir == 'all':
-        Theta = linspace(0, 180*Degrees, steps)
-        Phi = linspace(0, 360*Degrees, steps)
+        Theta = linspace(0, 180*Degrees, steptheta)
+        Phi = linspace(0, 360*Degrees, stepphi)
     else:
         print("None Selected")
         return
@@ -100,7 +115,7 @@ def GetDirectionCosine(adir, steps=400):
         return
 
 
-def DifferentialCrossSection(F, n0, n1, p, k, const=True, split=False, verbose=0):
+def DifferentialCrossSection(F, n1, p, k, const=True, split=False, verbose=0):
     """
     Differential cross section
 
@@ -118,19 +133,16 @@ def DifferentialCrossSection(F, n0, n1, p, k, const=True, split=False, verbose=0
     else:
         constterm = 1.0
 
-    eperp = cross(n0, n1)
-    epara = cross(eperp, n0)
 
-    firstterm = dot(eperp, p)
-    secondterm = dot(epara, p)
+    theta = arccos(n1[...,2])
+    phi = arctan2(n1[...,1], n1[...,0])
+
+    r, theta, phi = unitvectors(theta, phi)
 
     if split:
-        return (real(constterm*mag(firstterm)*F), 
-                real(constterm*mag(secondterm)*F))
+        return constterm*dot(theta, p)**2, constterm*dot(phi, p)**2
     else:
-        return ((real(constterm*mag(firstterm)*F)
-               + real(constterm*mag(secondterm)*F)))
-
+        return constterm*dot(theta, p)**2 + constterm*dot(phi, p)**2
 
 def OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=0):
     """
@@ -139,7 +151,10 @@ def OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=0):
     R = dstack(getpositions(N1, N2, lc))  # positions of each dipole
     divideby = (N1[1] - N1[0])*(N2[1] - N2[0])
     #divdeby = ptp(N1)/ptp(N2)
-    
+
+    if divideby == 1:
+        return ones(shape(alldirections)[:-1])
+
     if verbose > 0:
         print("shape of all directions", shape(alldirections))    
     
@@ -156,8 +171,8 @@ def structurefactor(n0, n1, R, k, verbose=0):
     R : position of each dipole
     k : incident wavelength
     """
-
-    q = k*(n0 - n1)
+    
+    q = k*(n0[...,newaxis] - n1)
     
     incidentphaseterm = IncidentPhaseArray(n0, R, k, verbose=verbose)
 
@@ -181,6 +196,7 @@ def DipoleDistribution(n1, p, k, const=False, verbose=0):
         constterm = (c ** 2*Zzero) / (32*pi ** 2)*k ** 4
     else:
         constterm = 1.0
+
 
     a = cross(n1, p)
     a = cross(a, n1)

@@ -4,7 +4,7 @@ Plotting functions for dipolearray (requires matplotlib >= 1.1.0)
 
 from __future__ import division, print_function
 from numpy import pi, ptp, min, max, array
-from numpy import invert, isnan
+from numpy import invert, isnan, shape
 from . import dipolearray as da
 
 def PlotLattice(axis, lc, N1, N2, **kwargs):
@@ -103,22 +103,23 @@ def Farfield3DImage(n0, k, N1, N2, lc, p, axis, **kwargs):
     steps : number of discrete steps in the plot to err...plot
     verbose : verbosity control
     """
-    
-    steps = kwargs.pop('steps', 200)
+
+    steptheta = kwargs.pop('steptheta', 400)
+    stepphi = kwargs.pop('stepphi', 200)
     verbose = kwargs.pop('verbose', 0)
     dist = kwargs.pop('dist', 'normal')
     
-    theta, phi = da.AnglesofHemisphere('all', steps)
+    theta, phi = da.AnglesofHemisphere('all', steptheta=steptheta, stepphi=stepphi)
     alldirections = da.DirectionVector(theta, phi, verbose=verbose)    
-    F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=verbose)
     
     if dist == 'analytical':
-        dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=False)
+        dsdo = da.DipoleDistribution(alldirections, p=p, k=k, const=False).T
     else:
-        dsdo = da.DifferentialCrossSection(F, n0, alldirections, p=p,
+        F = da.OutgoingDirections(alldirections, n0, N1, N2, lc, k, verbose=verbose)
+        dsdo = da.DifferentialCrossSection(F, alldirections, p=p,
                                         k=k, const=False, verbose=verbose)
-
-    adir = da.DirectionVector(theta, phi, dsdo)
+    
+    adir = da.DirectionVector(theta, phi, dsdo) #that pesky transpose operation is important!
     maxnum = max(adir)
     x = adir[..., 0] / maxnum
     y = adir[..., 1] / maxnum
