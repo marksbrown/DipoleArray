@@ -12,8 +12,8 @@ factor and the resulting differential cross section.
 from __future__ import division, print_function
 from collections import Iterable
 
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, reshape
-from numpy import cross, conj, dstack, ones, sqrt, linspace, newaxis, arccos, arctan2
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, reshape, ptp
+from numpy import cross, conj, dstack, ones, sqrt, linspace, newaxis, arccos, arctan2, subtract
 
 
 def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
@@ -179,59 +179,89 @@ def differential_cross_section_volume(n0, p, k, N1, N2, lc, adir, **kwargs):
 
     if dist == 'analytical':
         dsdo = electric_dipole_dpdo(alldirections, p=p, k=k, const=const).T
-    else:
+    elif dist == 'normal':
         F = structure_factor(n0, alldirections, N1, N2, lc, k, verbose=verbose)
         dsdo = differential_cross_section_single(F, alldirections, p=p,
                                                 k=k, const=const, verbose=verbose)
+    else:
+        raise KeyError, "{0} is unknown".format(dist)
 
     return theta, phi, dsdo
 
 
 def structure_factor_analytical(n0, n1, nx, ny, lc, k, verbose=0):
     """
-    Calculate the structure factor analytically
+    Calculates the Structure Factor
+
+    --args--
+    n0 : incident direction
+    n1 : outgoing directions
+    k : Wavenumber
+    nx : Number of points in first axis
+    ny : Number of points in second axis
+    lc : Lattice definition
+    verbose : verbosity control
     """
-    Lx, tx, Ly, ty = [100*nm, 0*Degrees, 100*nm, 90*Degrees]
 
-    divideby = (nx[1] - nx[0]) * (ny[1] - ny[0])
+    d1, t1, d2, t2 = lc
 
-    q = k * (n0 - n1)
-    qx = q[...,0]
-    qy = q[...,1]
+    q = k*subtract(n0, n1)
 
-    xterm = Lx/2*(qx*cos(tx)+qy*sin(tx))
-    yterm = Ly/2*(qx*cos(ty)+qy*sin(ty))
+    f = lambda length, angle : length*(q[...,0]*cos(angle)+q[...,1]*sin(angle))
+    F = lambda N, f : sin(N*f/2)**2/sin(f/2)**2
 
-    incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
+    N1 = ptp(nx)
+    N2 = ptp(ny)
 
+    Fx = 1 / N1 * F(N1, f(d1, t1))
+    Fy = 1 / N1 * F(N2, f(d2, t2))
 
+    return (Fx * Fy).T
 
-
-def structure_factor(n0, n1, nx, ny, lc, k, verbose=0):
+def structure_factor_sum(n0, n1, nx, ny, lc, k, verbose=0):
     """
-    Calculates the structure factor over each incident direction
+    Calculates the Structure Factor as sum
+
+    --args--
+    n0 : incident direction
+    n1 : outgoing directions
+    k : Wavenumber
+    nx : Number of points in first axis
+    ny : Number of points in second axis
+    lc : Lattice definition
+    verbose : verbosity control
     """
-    R = dstack(periodic_lattice_positions(nx, ny, lc))  # positions of each dipole
-    divideby = (nx[1] - nx[0]) * (ny[1] - ny[0])
-    #divdeby = ptp(N1)/ptp(N2)
 
-    #if divideby == 1:
-    #    return ones(shape(n1)[:-1]).T
+    d1, t1, d2, t2 = lc
+
+    q = k*subtract(n0, n1)
+
+    f = lambda length, angle : length*(q[...,0]*cos(angle)+q[...,1]*sin(angle))
+
+    F = lambda i, f: exp(1j*i*f)
+
+    N1 = ptp(nx)
+    N2 = ptp(ny)
+
+    Fx = sum([F(n, f(d1, t1)) for n in range(*nx)], axis=0)
+    Fx *= 1 / ptp(nx) * conj(Fx)
+
+    Fy = sum([F(n, f(d2, t2)) for n in range(*ny)], axis=0)
+    Fy *= 1 / ptp(ny) * conj(Fy)
+
+    return (real(Fx) * real(Fy)).T
+
+#incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
 
 
-    incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
-
-    def F(r):
-
-        q = k * (n0 - r) #elastic scattering vector
-
-        F = sum(exp(1j*dot(R,q)+1j*incident_phase_term))
-
-
-        return (F.real ** 2 +  F.imag ** 2)
-
-
-    return 1/divideby * array([[F(r) for r in row] for row in n1]).T
+def structure_factor(n0, n1, nx, ny, lc, k, dist='analytical', verbose=0):
+    """
+    Calculate the structure factor : F(q)
+    """
+    if dist == "analytical":
+        return structure_factor_analytical(n0, n1, nx, ny, lc, k, verbose)
+    elif dist == "sum":
+        return structure_factor_sum(n0, n1, nx, ny, lc, k, verbose)
 
 
 
