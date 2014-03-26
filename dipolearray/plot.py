@@ -4,13 +4,49 @@ Plotting functions for dipolearray (requires matplotlib >= 1.1.0)
 
 from __future__ import division, print_function
 
-from numpy import ptp, min, max
-from numpy import invert, isnan
+from numpy import ptp, min, max, pi
+from numpy import invert, isnan, meshgrid, linspace
 
 from . import dipolearray as da
 
+def structure_factor(axisone, axistwo, lc, N1, N2, **kwargs):
+    """
+    Plots the structure factor
+    """
 
-def plot_lattice(axis, lc, N1, N2, **kwargs):
+    nm = 1e-9
+    Degrees = pi/180
+
+    steptheta = kwargs.pop('steptheta', 400)
+    stepphi = kwargs.pop('stepphi', 200)
+    verbose = kwargs.pop('verbose', 0)
+    dist = kwargs.pop('dist', 'analytical')
+    k = kwargs.pop('k', (2*pi)/(420*nm)) #wavenumber of incident wave
+
+    theta, phi = meshgrid(linspace(0,180*Degrees, steptheta), linspace(0,360*Degrees, stepphi))
+
+    n0 = da.radial_direction_vector(theta, phi)
+    n1, theta, phi = da.spherical_unit_vectors(0*Degrees, 0*Degrees)
+
+    F = da.structure_factor(n0, n1, N1, N2, lc, k, dist=dist)
+
+    theta, phi = linspace(0,180*Degrees, steptheta), linspace(0,360*Degrees, stepphi)
+
+
+    ctf = axisone.contourf(theta/Degrees, phi/Degrees, F)
+    cb = axisone.figure.colorbar(ctf, ax=axisone)
+    cb.set_label("Structure Factor")
+    axisone.set_xlabel("phi (Degrees)")
+    axisone.set_ylabel("theta (Degrees)")
+
+    axistwo.plot(theta/Degrees, F[stepphi/2,...])
+    axistwo.set_xlabel("theta (Degrees)")
+    axistwo.set_ylabel("Structure Factor")
+    axistwo.set_xlim(0,180)
+
+    return axisone, axistwo
+
+def lattice(axis, lc, N1, N2, **kwargs):
     """
     Plots given Bravais lattice
     
@@ -64,31 +100,7 @@ def plot_lattice(axis, lc, N1, N2, **kwargs):
     axis.grid(True)
     return axis
 
-
-def to_cube(axis, cubeedge=1, size=20):
-    """
-    Sets 3D axis to cube
-    """
-    axis.set_xlabel("x", size=size)
-    axis.set_ylabel("y", size=size)
-    axis.set_zlabel("z", size=size)
-    axis.set_xlim(-cubeedge, cubeedge)
-    axis.set_ylim(-cubeedge, cubeedge)
-    axis.set_zlim(-cubeedge, cubeedge)
-
-
-def fetch_max_dimension(x, y, z):
-    """
-    Returns maximum dimension allowing us to scale sensibly
-    """
-    anumx = max(x[invert(isnan(x))])
-    anumy = max(y[invert(isnan(y))])
-    anumz = max(z[invert(isnan(z))])
-
-    return max([anumx, anumy, anumz])
-
-
-def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
+def farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     """
     Generate 3D matplotlib (>= 1.30 required if you wish save the image as svg)
     image of farfield pattern. 3 faces are plotted with the respective direction
@@ -116,6 +128,8 @@ def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     theta, phi, dsdo = da.differential_cross_section_volume(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
                                                           stepphi=stepphi, const=const, dist=dist, verbose=verbose)
 
+    dsdo[isnan(dsdo)] = 0
+
     adir = da.radial_direction_vector(theta, phi, dsdo)
     maxnum = max(adir)
     x = adir[..., 0] / maxnum
@@ -124,12 +138,12 @@ def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
 
     axis.plot_surface(x, y, z, alpha=0.2)
 
-    to_cube(axis)
+    _to_cube(axis)
 
     return axis
 
 
-def plot_farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
+def farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     """
     Generate 3D image of direction cosines of farfield pattern due to
     dipole array.
@@ -154,6 +168,7 @@ def plot_farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
         theta, phi, dsdo = da.differential_cross_section_volume(n0, p, k, N1, N2, lc, adir, steptheta=steps,
                                                               stepphi=steps, const=const, dist=dist, verbose=verbose)
 
+        dsdo[isnan(dsdo)] = 0 #sets NaN to zero
         dsdo /= max(dsdo)
 
         ux, uy = da.direction_cosine(adir, steptheta=steps, stepphi=steps)
@@ -173,3 +188,26 @@ def plot_farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
 
     return axis
+
+
+def _to_cube(axis, cubeedge=1, size=20):
+    """
+    Sets 3D axis to cube
+    """
+    axis.set_xlabel("x", size=size)
+    axis.set_ylabel("y", size=size)
+    axis.set_zlabel("z", size=size)
+    axis.set_xlim(-cubeedge, cubeedge)
+    axis.set_ylim(-cubeedge, cubeedge)
+    axis.set_zlim(-cubeedge, cubeedge)
+
+
+def _fetch_max_dimension(x, y, z):
+    """
+    Returns maximum dimension allowing us to scale sensibly
+    """
+    anumx = max(x[invert(isnan(x))])
+    anumy = max(y[invert(isnan(y))])
+    anumz = max(z[invert(isnan(z))])
+
+    return max([anumx, anumy, anumz])
