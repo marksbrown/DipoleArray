@@ -113,7 +113,7 @@ def plot_farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     dist = kwargs.pop('dist', 'normal')
     const = kwargs.pop('const', False)
 
-    theta, phi, dsdo = da.differential_crossection_volume(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
+    theta, phi, dsdo = da.differential_cross_section_volume(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
                                                           stepphi=stepphi, const=const, dist=dist, verbose=verbose)
 
     adir = da.radial_direction_vector(theta, phi, dsdo)
@@ -151,7 +151,7 @@ def plot_farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     const = kwargs.pop('const', False)
 
     for adir in ['x', 'y', 'z']:
-        theta, phi, dsdo = da.differential_crossection_volume(n0, p, k, N1, N2, lc, adir, steptheta=steps,
+        theta, phi, dsdo = da.differential_cross_section_volume(n0, p, k, N1, N2, lc, adir, steptheta=steps,
                                                               stepphi=steps, const=const, dist=dist, verbose=verbose)
 
         dsdo /= max(dsdo)

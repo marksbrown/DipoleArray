@@ -12,23 +12,26 @@ factor and the resulting differential cross section.
 from __future__ import division, print_function
 from collections import Iterable
 
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, reshape
 from numpy import cross, conj, dstack, ones, sqrt, linspace, newaxis, arccos, arctan2
 
-def incident_phase_addition(n0, R, k, verbose=0, **kwargs):
-    '''
+
+def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
+    """
     Returns phase addition term due to incident wave
-    '''
-    p0 = kwargs.get('intersection', array([0, 0, 0]))  # planes cross at origin
-
-    return k * (dot(R, n0) + dot(p0, n0))
-
+    n0: incident direction
+    R: scatter position
+    k: wavenumber
+    intersection: intersection position (defaults to origin)
+    verbose: verbosity control
+    """
+    return k * (dot(R, n0) + dot(intersection, n0))
 
 def periodic_lattice_positions(N1, N2, lc):
-    '''
+    """
     Returns cartesian position of an array of points defined by the lattice
     _lc_ with min/max numbers defined by the tuples _N1_ and _N2_
-    '''
+    """
     u1, u2 = meshgrid(range(*N1), range(*N2))  # grid of integers
 
     if len(lc) == 4:
@@ -46,6 +49,7 @@ def periodic_lattice_positions(N1, N2, lc):
     Z = zeros(shape(X))
 
     return X, Y, Z
+
 
 def spherical_unit_vectors(theta=0, phi=0):
     """
@@ -123,7 +127,7 @@ def direction_cosine(adir, steptheta=400, stepphi=400):
         return
 
 
-def differential_crosssection_single(F, n1, p, k, const=True, split=False, verbose=0):
+def differential_cross_section_single(F, n1, p, k, const=True, split=False, verbose=0):
     """
     Differential cross section
 
@@ -147,12 +151,12 @@ def differential_crosssection_single(F, n1, p, k, const=True, split=False, verbo
     r, theta, phi = spherical_unit_vectors(theta, phi)
 
     if split:
-        return constterm * dot(theta, p) ** 2, constterm * dot(phi, p) ** 2
+        return F * constterm * dot(theta, p) ** 2, F * constterm * dot(phi, p) ** 2
     else:
-        return constterm * dot(theta, p) ** 2 + constterm * dot(phi, p) ** 2
+        return F * constterm * dot(theta, p) ** 2 + F * constterm * dot(phi, p) ** 2
 
 
-def differential_crossection_volume(n0, p, k, N1, N2, lc, adir, **kwargs):
+def differential_cross_section_volume(n0, p, k, N1, N2, lc, adir, **kwargs):
     """
     Calculate the differential scattering cross section
 
@@ -176,50 +180,59 @@ def differential_crossection_volume(n0, p, k, N1, N2, lc, adir, **kwargs):
     if dist == 'analytical':
         dsdo = electric_dipole_dpdo(alldirections, p=p, k=k, const=const).T
     else:
-        F = structure_factor_volume(alldirections, n0, N1, N2, lc, k, verbose=verbose)
-        dsdo = differential_crosssection_single(F, alldirections, p=p,
+        F = structure_factor(n0, alldirections, N1, N2, lc, k, verbose=verbose)
+        dsdo = differential_cross_section_single(F, alldirections, p=p,
                                                 k=k, const=const, verbose=verbose)
 
     return theta, phi, dsdo
 
 
-def structure_factor_volume(alldirections, n0, N1, N2, lc, k, verbose=0):
+def structure_factor_analytical(n0, n1, nx, ny, lc, k, verbose=0):
+    """
+    Calculate the structure factor analytically
+    """
+    Lx, tx, Ly, ty = [100*nm, 0*Degrees, 100*nm, 90*Degrees]
+
+    divideby = (nx[1] - nx[0]) * (ny[1] - ny[0])
+
+    q = k * (n0 - n1)
+    qx = q[...,0]
+    qy = q[...,1]
+
+    xterm = Lx/2*(qx*cos(tx)+qy*sin(tx))
+    yterm = Ly/2*(qx*cos(ty)+qy*sin(ty))
+
+    incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
+
+
+
+
+def structure_factor(n0, n1, nx, ny, lc, k, verbose=0):
     """
     Calculates the structure factor over each incident direction
     """
-    R = dstack(periodic_lattice_positions(N1, N2, lc))  # positions of each dipole
-    divideby = (N1[1] - N1[0]) * (N2[1] - N2[0])
+    R = dstack(periodic_lattice_positions(nx, ny, lc))  # positions of each dipole
+    divideby = (nx[1] - nx[0]) * (ny[1] - ny[0])
     #divdeby = ptp(N1)/ptp(N2)
 
-    if divideby == 1:
-        return ones(shape(alldirections)[:-1])
-
-    if verbose > 0:
-        print("shape of all directions", shape(alldirections))
-
-    return array([[structure_factor_single(n0, n1, R, k, verbose=verbose) / divideby
-                   for n1 in row] for row in alldirections])
+    #if divideby == 1:
+    #    return ones(shape(n1)[:-1]).T
 
 
-def structure_factor_single(n0, n1, R, k, verbose=0):
-    """
-    The Structure Factor (eqn 10.19 Jackson)
+    incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
 
-    n0 : incident direction
-    n1 : outgoing direction
-    R : position of each dipole
-    k : incident wavelength
-    """
+    def F(r):
 
-    q = k * (n0[..., newaxis] - n1)
+        q = k * (n0 - r) #elastic scattering vector
 
-    incidentphaseterm = incident_phase_addition(n0, R, k, verbose=verbose)
+        F = sum(exp(1j*dot(R,q)+1j*incident_phase_term))
 
-    amp = sum(exp(1j * dot(R, q) + 1j * incidentphaseterm))
 
-    a1, b1 = amp.real, amp.imag
+        return (F.real ** 2 +  F.imag ** 2)
 
-    return (a1 ** 2 + b1 ** 2)
+
+    return 1/divideby * array([[F(r) for r in row] for row in n1]).T
+
 
 
 def electric_dipole_dpdo(n1, p, k, const=False, verbose=0):
@@ -244,12 +257,12 @@ def electric_dipole_dpdo(n1, p, k, const=False, verbose=0):
     return real(constterm * mag(a))
 
 
-def polarisability_sphere(episilon, epsilon_media, radius):
-    '''
+def polarisability_sphere(epsilon, epsilon_media, radius):
+    """
     Equation (10.5) from Jackson
-    '''
+    """
     eps0 = 8.85418782E-12
-    return 4 * pi * ((episilon - epsilon_media) / (episilon + 2 * epsilon_media)) * radius ** 3
+    return 4 * pi * ((epsilon - epsilon_media) / (epsilon + 2 * epsilon_media)) * radius ** 3
 
 
 def induced_dipole_moment(epsilon_media, alpha, E0, Flag=False, **kwargs):
@@ -260,12 +273,12 @@ def induced_dipole_moment(epsilon_media, alpha, E0, Flag=False, **kwargs):
     c = 3E8
     nm = 1e-9
 
-    wavevector = kwargs.get('wavevector', [0, 0, (2 * pi) / (420 * nm)])
+    wavenumber = kwargs.get('wavenumber', [0, 0, (2 * pi) / (420 * nm)])
     position = kwargs.get('position', 0)
     omega = kwargs.get('frequency', (2 * pi * c) / (420 * nm))
     time = kwargs.get('time', 0)
 
     if Flag:
-        return epsilon_media * alpha * E0 * exp(1j * dot(wavevector, position)) * exp(-1j * omega * time)
+        return epsilon_media * alpha * E0 * exp(1j * dot(wavenumber, position)) * exp(-1j * omega * time)
     else:
         return epsilon_media * alpha * E0
