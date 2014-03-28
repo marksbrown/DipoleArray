@@ -10,10 +10,9 @@ of dipoles with a known Bravais lattice. The code calculates the structure
 factor and the resulting differential cross section.
 """
 from __future__ import division, print_function
-from collections import Iterable
 
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, reshape, ptp
-from numpy import cross, conj, dstack, ones, sqrt, linspace, newaxis, arccos, arctan2, subtract
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan2, subtract
 
 
 def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
@@ -34,18 +33,13 @@ def periodic_lattice_positions(N1, N2, lc):
     """
     u1, u2 = meshgrid(range(*N1), range(*N2))  # grid of integers
 
-    if len(lc) == 4:
-        dx, tx, dy, ty = lc
-        dvary = 0
-        tvary = 0
-    elif len(lc) == 6:
-        dx, tx, dy, ty, dvary, tvary = lc
+    dx, tx, dy, ty = lc
 
     xpos = lambda u, d, t: u * d * cos(t)
     ypos = lambda u, d, t: u * d * sin(t)
 
-    X = xpos(u1, dx, tx) + xpos(u2, dy, ty) + xpos(u1 ** 2, dvary, tvary)
-    Y = ypos(u1, dx, tx) + ypos(u2, dy, ty) + ypos(u2 ** 2, dvary, tvary)
+    X = xpos(u1, dx, tx) + xpos(u2, dy, ty)
+    Y = ypos(u1, dx, tx) + ypos(u2, dy, ty)
     Z = zeros(shape(X))
 
     return X, Y, Z
@@ -83,7 +77,8 @@ def angles_of_hemisphere(adir, steptheta=400, stepphi=400):
     theta and phi ranges for hemispheres in 'x', 'y', 'z' direction
     ---
     adir : a chosen direction ('x' or 'y' or 'z')
-    steps :
+    steptheta : number of steps in theta
+    stepphi : number of steps in phi
     """
 
     Degrees = pi / 180
@@ -127,13 +122,13 @@ def direction_cosine(adir, steptheta=400, stepphi=400):
         return
 
 
-def differential_cross_section_single(F, n1, p, k, const=True, split=False, verbose=0):
+def differential_cross_section_single(F, n0, n1, k, const=True, split=False, verbose=0):
     """
-    Differential cross section
+    Differential cross section for unpolarised incident light
 
+    F : structure factor
     n0 : incident direction
     n1 : outgoing direction
-    p : electric dipole moment vector
     k : wavenumber
     const : include constants
     """
@@ -145,24 +140,19 @@ def differential_cross_section_single(F, n1, p, k, const=True, split=False, verb
     else:
         constterm = 1.0
 
-    theta = arccos(n1[..., 2])
-    phi = arctan2(n1[..., 1], n1[..., 0])
-
-    r, theta, phi = spherical_unit_vectors(theta, phi)
-
     if split:
-        return F * constterm * dot(theta, p) ** 2, F * constterm * dot(phi, p) ** 2
+        return F * constterm * ones(shape(n1)), F * constterm * dot(n1, n0) ** 2
     else:
-        return F * constterm * dot(theta, p) ** 2 + F * constterm * dot(phi, p) ** 2
+        return (F * constterm * (1 + dot(n1, n0) ** 2)).T
 
 
-def differential_cross_section_volume(n0, p, k, N1, N2, lc, adir, **kwargs):
+def differential_cross_section_volume(n0, k, N1, N2, lc, adir, **kwargs):
     """
     Calculate the differential scattering cross section
 
     ---args--
     n0 - incident direction
-    p - induced dipole moment
+    k - wavenumber
     N1, N2 - numbers of scatterers in X, Y
     lc - lattice
     adir - direction of interest
@@ -175,14 +165,15 @@ def differential_cross_section_volume(n0, p, k, N1, N2, lc, adir, **kwargs):
     const = kwargs.get('const', False)
 
     theta, phi = angles_of_hemisphere(adir, steptheta=steptheta, stepphi=stepphi)
-    alldirections = radial_direction_vector(theta, phi, verbose=verbose)
+    n1 = radial_direction_vector(theta, phi, verbose=verbose)
 
     if dist == 'analytical':
-        dsdo = electric_dipole_dpdo(alldirections, p=p, k=k, const=const).T
+        dsdo = combined_dipole_dpdo(n0, n1, k, const, verbose)
+
     elif dist == 'normal':
-        F = structure_factor(n0, alldirections, N1, N2, lc, k, verbose=verbose)
-        dsdo = differential_cross_section_single(F, alldirections, p=p,
-                                                k=k, const=const, verbose=verbose)
+        F = structure_factor(n0, n1, N1, N2, lc, k, verbose=verbose)
+        dsdo = differential_cross_section_single(F, n0, n1, k=k, const=const, verbose=verbose)
+
     else:
         raise KeyError, "{0} is unknown".format(dist)
 
@@ -216,7 +207,8 @@ def structure_factor_analytical(n0, n1, nx, ny, lc, k, verbose=0):
     Fx = 1 / N1 * F(N1, f(d1, t1))
     Fy = 1 / N1 * F(N2, f(d2, t2))
 
-    return (Fx * Fy).T
+    return (Fx * Fy)
+
 
 def structure_factor_sum(n0, n1, nx, ny, lc, k, verbose=0):
     """
@@ -249,7 +241,8 @@ def structure_factor_sum(n0, n1, nx, ny, lc, k, verbose=0):
     Fy = sum([F(n, f(d2, t2)) for n in range(*ny)], axis=0)
     Fy *= 1 / ptp(ny) * conj(Fy)
 
-    return (real(Fx) * real(Fy)).T
+    return (real(Fx) * real(Fy))
+
 
 #incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
 
@@ -263,6 +256,19 @@ def structure_factor(n0, n1, nx, ny, lc, k, dist='analytical', verbose=0):
     elif dist == "sum":
         return structure_factor_sum(n0, n1, nx, ny, lc, k, verbose)
 
+
+def combined_dipole_dpdo(n0, n1, k, const=False, verbose=0):
+    """
+    Combine two orthogonal electric dipoles to the incident direction to predict
+    the behaviour of unpolarised light
+    """
+
+    theta = arccos(n0[..., 2])
+    phi = arctan2(n0[..., 1], n0[..., 0])
+
+    n0, eperp, epara = spherical_unit_vectors(theta, phi)
+
+    return (electric_dipole_dpdo(n1, eperp, k, const, verbose) + electric_dipole_dpdo(n1, epara, k, const, verbose)).T
 
 
 def electric_dipole_dpdo(n1, p, k, const=False, verbose=0):
@@ -282,7 +288,7 @@ def electric_dipole_dpdo(n1, p, k, const=False, verbose=0):
     a = cross(n1, p)
     a = cross(a, n1)
 
-    mag = lambda mat: sum(mat * conj(mat), axis=2)
+    mag = lambda mat: sum(mat * conj(mat), axis=-1)
 
     return real(constterm * mag(a))
 

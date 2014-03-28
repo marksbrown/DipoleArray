@@ -9,6 +9,7 @@ from numpy import invert, isnan, meshgrid, linspace
 
 from . import dipolearray as da
 
+
 def structure_factor(axisone, axistwo, lc, N1, N2, **kwargs):
     """
     Plots the structure factor
@@ -32,14 +33,13 @@ def structure_factor(axisone, axistwo, lc, N1, N2, **kwargs):
 
     theta, phi = linspace(0,180*Degrees, steptheta), linspace(0,360*Degrees, stepphi)
 
-
-    ctf = axisone.contourf(theta/Degrees, phi/Degrees, F)
+    ctf = axisone.contourf(theta / Degrees, phi / Degrees, F.T)
     cb = axisone.figure.colorbar(ctf, ax=axisone)
     cb.set_label("Structure Factor")
     axisone.set_xlabel("phi (Degrees)")
     axisone.set_ylabel("theta (Degrees)")
 
-    axistwo.plot(theta/Degrees, F[stepphi/2,...])
+    axistwo.plot(theta / Degrees, F[..., stepphi / 2])
     axistwo.set_xlabel("theta (Degrees)")
     axistwo.set_ylabel("Structure Factor")
     axistwo.set_xlim(0,180)
@@ -100,7 +100,8 @@ def lattice(axis, lc, N1, N2, **kwargs):
     axis.grid(True)
     return axis
 
-def farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
+
+def farfield_surface_3D(n0, k, N1, N2, lc, axis, **kwargs):
     """
     Generate 3D matplotlib (>= 1.30 required if you wish save the image as svg)
     image of farfield pattern. 3 faces are plotted with the respective direction
@@ -125,8 +126,8 @@ def farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     dist = kwargs.pop('dist', 'normal')
     const = kwargs.pop('const', False)
 
-    theta, phi, dsdo = da.differential_cross_section_volume(n0, p, k, N1, N2, lc, 'all', steptheta=steptheta,
-                                                          stepphi=stepphi, const=const, dist=dist, verbose=verbose)
+    theta, phi, dsdo = da.differential_cross_section_volume(n0, k, N1, N2, lc, 'all', steptheta=steptheta,
+                                                            stepphi=stepphi, const=const, dist=dist, verbose=verbose)
 
     dsdo[isnan(dsdo)] = 0
 
@@ -143,7 +144,7 @@ def farfield_3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     return axis
 
 
-def farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
+def farfield_direction_cosines_3D(n0, k, N1, N2, lc, axis, **kwargs):
     """
     Generate 3D image of direction cosines of farfield pattern due to
     dipole array.
@@ -163,29 +164,30 @@ def farfield_directioncosines3D(n0, k, N1, N2, lc, p, axis, **kwargs):
     N = kwargs.pop("N", 50)
     dist = kwargs.pop('dist', 'normal')
     const = kwargs.pop('const', False)
+    split = kwargs.pop('split', False)
 
     for adir in ['x', 'y', 'z']:
-        theta, phi, dsdo = da.differential_cross_section_volume(n0, p, k, N1, N2, lc, adir, steptheta=steps,
-                                                              stepphi=steps, const=const, dist=dist, verbose=verbose)
+        theta, phi, dsdo = da.differential_cross_section_volume(n0, k, N1, N2, lc, adir, steptheta=steps, split=split,
+                                                                stepphi=steps, const=const, dist=dist, verbose=verbose)
 
-        dsdo[isnan(dsdo)] = 0 #sets NaN to zero
+        dsdo[isnan(dsdo)] = 0
         dsdo /= max(dsdo)
 
         ux, uy = da.direction_cosine(adir, steptheta=steps, stepphi=steps)
 
         if adir == 'x':
-            ctf = axis.contourf(dsdo, ux, uy, N,
-                                zdir=adir, offset=-1, **kwargs)
+            axis.contourf(dsdo, ux, uy, N,
+                          zdir=adir, offset=-1, levels=linspace(0, 1, N), **kwargs)
         elif adir == 'y':
-            ctf = axis.contourf(ux, dsdo, uy, N,
-                                zdir=adir, offset=1, **kwargs)
+            axis.contourf(ux, dsdo, uy, N,
+                          zdir=adir, offset=1, levels=linspace(0, 1, N), **kwargs)
         elif adir == 'z':
             ctf = axis.contourf(ux, uy, dsdo, N,
-                                zdir=adir, offset=-1, **kwargs)
+                                zdir=adir, offset=-1, levels=linspace(0, 1, N), **kwargs)
 
-    cb = axis.figure.colorbar(ctf, ax=axis, use_gridspec=True, shrink=0.5)
-    cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
-    cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
+            cb = axis.figure.colorbar(ctf, ax=axis, use_gridspec=True, shrink=0.5)
+            cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
+            cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
 
     return axis
 
