@@ -12,7 +12,7 @@ factor and the resulting differential cross section.
 from __future__ import division, print_function
 
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp
-from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan2, subtract
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan2, subtract, isnan, where
 
 
 def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
@@ -180,16 +180,19 @@ def differential_cross_section_volume(n0, k, N1, N2, lc, adir, **kwargs):
     return theta, phi, dsdo
 
 
-def structure_factor_analytical(n0, n1, nx, ny, lc, k, verbose=0):
+
+
+
+def structure_factor(n0, n1, x_scatterers, y_scatterers, lc, k, dist='analytical', verbose=0):
     """
-    Calculates the Structure Factor
+    Calculates the Structure Factor : F(q)
 
     --args--
     n0 : incident direction
     n1 : outgoing directions
     k : Wavenumber
-    nx : Number of points in first axis
-    ny : Number of points in second axis
+    x_scatterers : Number of points in first axis
+    y_scatterers : Number of points in second axis
     lc : Lattice definition
     verbose : verbosity control
     """
@@ -198,64 +201,37 @@ def structure_factor_analytical(n0, n1, nx, ny, lc, k, verbose=0):
 
     q = k*subtract(n0, n1)
 
-    f = lambda length, angle : length*(q[...,0]*cos(angle)+q[...,1]*sin(angle))
-    F = lambda N, f : sin(N*f/2)**2/sin(f/2)**2
+    exponent_factor = lambda length, angle: length*(q[...,0]*cos(angle)+q[...,1]*sin(angle))
 
-    N1 = ptp(nx)
-    N2 = ptp(ny)
+    N1 = ptp(x_scatterers)
+    N2 = ptp(y_scatterers)
 
-    Fx = 1 / N1 * F(N1, f(d1, t1))
-    Fy = 1 / N1 * F(N2, f(d2, t2))
+    if verbose > 0:
+        print("{0}x{1}".format(N1,N2))
 
-    return (Fx * Fy)
-
-
-def structure_factor_sum(n0, n1, nx, ny, lc, k, verbose=0):
-    """
-    Calculates the Structure Factor as sum
-
-    --args--
-    n0 : incident direction
-    n1 : outgoing directions
-    k : Wavenumber
-    nx : Number of points in first axis
-    ny : Number of points in second axis
-    lc : Lattice definition
-    verbose : verbosity control
-    """
-
-    d1, t1, d2, t2 = lc
-
-    q = k*subtract(n0, n1)
-
-    f = lambda length, angle : length*(q[...,0]*cos(angle)+q[...,1]*sin(angle))
-
-    F = lambda i, f: exp(1j*i*f)
-
-    N1 = ptp(nx)
-    N2 = ptp(ny)
-
-    Fx = sum([F(n, f(d1, t1)) for n in range(*nx)], axis=0)
-    Fx *= 1 / ptp(nx) * conj(Fx)
-
-    Fy = sum([F(n, f(d2, t2)) for n in range(*ny)], axis=0)
-    Fy *= 1 / ptp(ny) * conj(Fy)
-
-    return (real(Fx) * real(Fy))
-
-
-#incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
-
-
-def structure_factor(n0, n1, nx, ny, lc, k, dist='analytical', verbose=0):
-    """
-    Calculate the structure factor : F(q)
-    """
     if dist == "analytical":
-        return structure_factor_analytical(n0, n1, nx, ny, lc, k, verbose)
-    elif dist == "sum":
-        return structure_factor_sum(n0, n1, nx, ny, lc, k, verbose)
+        #returns the analytical expression
 
+        structure_factor_1d = lambda N, f: where(f!=0, sin(N*f/2)**2/sin(f/2)**2, N**2)
+
+        Fx = structure_factor_1d(N1, exponent_factor(d1, t1))
+        Fy = structure_factor_1d(N2, exponent_factor(d2, t2))
+
+        return (Fx * Fy)
+
+    elif dist == "sum":
+
+        structure_factor_1d = lambda i, f: where(f!=0, exp(1j*i*f), 1)
+
+        Fx = sum([structure_factor_1d(n, exponent_factor(d1, t1)) for n in range(*x_scatterers)], axis=0)
+        Fx *= conj(Fx)
+
+        Fy = sum([structure_factor_1d(n, exponent_factor(d2, t2)) for n in range(*y_scatterers)], axis=0)
+        Fy *= conj(Fy)
+
+        return (real(Fx) * real(Fy))
+
+#TODO - Determine if this is needed! : incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
 
 def combined_dipole_dpdo(n0, n1, k, const=False, verbose=0):
     """
