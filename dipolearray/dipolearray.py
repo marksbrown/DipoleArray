@@ -12,7 +12,7 @@ factor and the resulting differential cross section.
 from __future__ import division, print_function
 
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp
-from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan2, subtract, isnan, where
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan2, subtract, where
 
 
 def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
@@ -72,7 +72,7 @@ def radial_direction_vector(theta=0, phi=0, amplitude=1, verbose=0):
                   amplitude * ones(shape(phi)) * cos(theta))).T
 
 
-def angles_of_hemisphere(adir, steptheta=400, stepphi=400):
+def angles_of_hemisphere(adir, steptheta=400, stepphi=400, meshed=True):
     """
     theta and phi ranges for hemispheres in 'x', 'y', 'z' direction
     ---
@@ -99,7 +99,10 @@ def angles_of_hemisphere(adir, steptheta=400, stepphi=400):
         print("None Selected")
         return
 
-    return meshgrid(Theta, Phi)
+    if meshed:
+        return meshgrid(Theta, Phi)
+    else:
+        return Theta, Phi
 
 
 def direction_cosine(adir, steptheta=400, stepphi=400):
@@ -169,6 +172,9 @@ def differential_cross_section_volume(n0, k, N1, N2, lc, adir, **kwargs):
 
     if dist == 'analytical':
         dsdo = combined_dipole_dpdo(n0, n1, k, const, verbose)
+
+    elif dist == 'single':
+        dsdo = electric_dipole_dpdo(n0, n1, k, const, verbose)
 
     elif dist == 'normal':
         F = structure_factor(n0, n1, N1, N2, lc, k, verbose=verbose)
