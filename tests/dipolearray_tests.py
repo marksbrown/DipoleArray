@@ -67,3 +67,13 @@ def test_radial_direction_vector():
     for a, b, c in combinations(2 * (0, 5 * Degrees, linspace(0, 180, 5) * Degrees), 3):
         adir = da.radial_direction_vector(a, b, c)
 
+
+
+def oblate_spheroid():
+    """
+    Oblate spheroid should equal sphere when a == b
+    """
+
+    nm = 1e-9
+    assert_allclose(da.polarisability_sphere(4, 1, 10*nm), da.polarisability_spheroid(4, 1, 10*nm, 10*nm), err_msg="oblate spheroid doesn't tend to spherical polarisability")
+

@@ -11,8 +11,8 @@ factor and the resulting differential cross section.
 """
 from __future__ import division, print_function
 
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp
-from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan2, subtract, where
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye
 
 
 def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
@@ -275,28 +275,38 @@ def electric_dipole_dpdo(n1, p, k, const=False, verbose=0):
     return real(constterm * mag(a))
 
 
-def polarisability_sphere(epsilon, epsilon_media, radius):
+def polarisability_sphere(epsilon, epsilon_media, a):
     """
-    Equation (10.5) from Jackson
+    Polarisability tensor of a sphere
     """
-    eps0 = 8.85418782E-12
-    return 4 * pi * ((epsilon - epsilon_media) / (epsilon + 2 * epsilon_media)) * radius ** 3
 
+    return eye(3)*4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
 
-def induced_dipole_moment(epsilon_media, alpha, E0, Flag=False, **kwargs):
+def polarisability_spheroid(epsilon, epsilon_media, a, b):
     """
-    Calculate the induced dipole moment due to an incident plane wave
-    assumes no time or position variation unless specified
+    Polarisability tensor of spheroid
+    Two dimensions of the ellipsoid are the same
+
+    a, b : principal axis radii
     """
-    c = 3E8
-    nm = 1e-9
-
-    wavenumber = kwargs.get('wavenumber', [0, 0, (2 * pi) / (420 * nm)])
-    position = kwargs.get('position', 0)
-    omega = kwargs.get('frequency', (2 * pi * c) / (420 * nm))
-    time = kwargs.get('time', 0)
-
-    if Flag:
-        return epsilon_media * alpha * E0 * exp(1j * dot(wavenumber, position)) * exp(-1j * omega * time)
+    if a > b: #Prolate
+        eccentricity = 1 - (b/a)**2
+        geometry_factor = (1 - eccentricity**2)/eccentricity**2*(-1+1/(2*eccentricity)*log((1+eccentricity)/(1-eccentricity)))
+    if a < b: #Oblate
+        eccentricity = 1 - (a/b)**2
+        g_eccentricity = sqrt((1-eccentricity**2)/eccentricity**2)
+        geometry_factor = g_eccentricity / (2*eccentricity**2) * (pi/2 - arctan(g_eccentricity))-g_eccentricity**2/2
     else:
-        return epsilon_media * alpha * E0
+        return polarisability_sphere(epsilon, epsilon_media, a)
+
+    alpha = lambda L : 4*pi*epsilon*a*b**2*(epsilon - epsilon_media)/(3*epsilon_media+3*L*(epsilon-epsilon_media))
+
+    return array(((alpha(geometry_factor), 0, 0), (0, alpha(geometry_factor), 0), (0, 0, alpha(1-2*geometry_factor))))
+
+
+def induced_dipole_moment(E0, alpha, epsilon_media=1):
+    """
+    Calculate the (time averaged) induced dipole moment due to an incident plane wave
+    """
+
+    return epsilon_media*dot(alpha, E0)
