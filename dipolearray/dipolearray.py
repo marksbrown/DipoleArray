@@ -282,7 +282,7 @@ def polarisability_sphere(epsilon, epsilon_media, a):
     """
     return 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
 
-def polarisability_spheroid(epsilon, epsilon_media, a, b, c, verbose=0):
+def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False, verbose=0):
     """
     Polarisability tensor of spheroid aligned in z
 
@@ -348,6 +348,9 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, verbose=0):
     else:
         eccentricity[prolate_condition] = 1 - (b/a)**2
 
+    if verbose > 0:
+        print(eccentricity[prolate_condition])
+
     if isinstance(a,Iterable) and isinstance(c, Iterable):
         eccentricity[oblate_condition] = 1 - (c[oblate_condition]/a[oblate_condition])**2
     elif isinstance(a,Iterable) and not isinstance(c, Iterable):
@@ -358,10 +361,10 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, verbose=0):
         eccentricity[oblate_condition] = 1 - (c/a)**2
 
     g_eccentricity = sqrt((1-eccentricity[oblate_condition]**2)/eccentricity[oblate_condition]**2)
-
     geometry_factor[oblate_condition] = g_eccentricity / (2*eccentricity[oblate_condition]**2) * (pi/2 - arctan(g_eccentricity))-g_eccentricity**2/2
 
-    geometry_factor[prolate_condition] = (1 - eccentricity[prolate_condition]**2)/eccentricity[prolate_condition]**2*(-1+1/(2*eccentricity[prolate_condition])*log((1+eccentricity[prolate_condition])/(1-eccentricity[prolate_condition])))
+    geometry_factor[prolate_condition] = (1 - eccentricity[prolate_condition]**2) / eccentricity[prolate_condition]**2*(
+        -1+1/(2*eccentricity[prolate_condition])*log((1+eccentricity[prolate_condition])/(1-eccentricity[prolate_condition])))
 
     alpha_lambda = lambda L : 4*pi*a*b*c*(epsilon - epsilon_media)/(3*epsilon_media+3*L*(epsilon-epsilon_media))
 
@@ -382,7 +385,10 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, verbose=0):
         alpha[1::3, 1][sphere_condition] = sphere_alpha
         alpha[2::3, 2][sphere_condition] = sphere_alpha
 
-    return eccentricity, alpha
+    if with_geometry:
+        return geometry_factor, eccentricity, alpha
+    else:
+        return eccentricity, alpha
 
 
 def induced_dipole_moment(E0, alpha, epsilon_media=1):
