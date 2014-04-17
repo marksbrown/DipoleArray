@@ -11,8 +11,9 @@ factor and the resulting differential cross section.
 """
 from __future__ import division, print_function
 
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log
-from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray
+from collections import Iterable
 
 
 def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
@@ -279,29 +280,109 @@ def polarisability_sphere(epsilon, epsilon_media, a):
     """
     Polarisability tensor of a sphere
     """
+    return 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
 
-    return eye(3)*4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
-
-def polarisability_spheroid(epsilon, epsilon_media, a, b):
+def polarisability_spheroid(epsilon, epsilon_media, a, b, c, verbose=0):
     """
-    Polarisability tensor of spheroid
-    Two dimensions of the ellipsoid are the same
+    Polarisability tensor of spheroid aligned in z
 
-    a, b : principal axis radii
+    a, b : principal semiaxes
+
+    a==b : Oblate
+    b==c : prolate
+    a==b==c : sphere
+    a!=!b!=c : ellipsoid (Not Implemented)
+
+    verbose : verbosity control
     """
-    if a > b: #Prolate
-        eccentricity = 1 - (b/a)**2
-        geometry_factor = (1 - eccentricity**2)/eccentricity**2*(-1+1/(2*eccentricity)*log((1+eccentricity)/(1-eccentricity)))
-    if a < b: #Oblate
-        eccentricity = 1 - (a/b)**2
-        g_eccentricity = sqrt((1-eccentricity**2)/eccentricity**2)
-        geometry_factor = g_eccentricity / (2*eccentricity**2) * (pi/2 - arctan(g_eccentricity))-g_eccentricity**2/2
+
+    if isinstance(a, float) and isinstance(b, float) and isinstance(c, float): #single value catch
+        a = array([a])
+        b = array([b])
+        c = array([c])
+
+
+    arr_shapes = [product(shape(a)), product(shape(b)), product(shape(c))]
+
+    if argmax(arr_shapes) == 0:
+        geometry_factor = 1/3 * ones(shape(a))
+        eccentricity = zeros(shape(a))
+        alpha = tile(eye(3), shape(a)).T
+    if argmax(arr_shapes) == 1:
+        geometry_factor = 1/3 * ones(shape(b))
+        eccentricity = zeros(shape(b))
+        alpha = tile(eye(3), shape(b)).T
+    if argmax(arr_shapes) == 2:
+        geometry_factor = 1/3 * ones(shape(c))
+        eccentricity = zeros(shape(c))
+        alpha = tile(eye(3), shape(c)).T
+
+    if verbose > 0:
+        print("alpha is of shape {}".format(shape(alpha)))
+
+    prolate_condition = (b == c) & (a != b) & (a != c)
+    oblate_condition = (a == b) & (a != c) & (b != c)
+    sphere_condition = (a == b) & (a == c) & (b == c)
+    ellipsoid_condition = (a != b) & (a != c) & (b != c)
+
+    if verbose > 0:
+        print("There are {} polarisabilities to find".format(product(shape(eccentricity))))
+        print("There are {} prolates".format(sum(prolate_condition)))
+        print("There are {} oblates".format(sum(oblate_condition)))
+        print("There are {} spheres".format(sum(sphere_condition)))
+
+    try:
+        if any(ellipsoid_condition):
+            print("Ellipsoid's are not implemented!")
+    except TypeError:
+        if ellipsoid_condition:
+            print("Ellipsoid's are not implemented!")
+
+
+    if isinstance(a,Iterable) and isinstance(b,Iterable):
+        eccentricity[prolate_condition] = 1 - (b[prolate_condition]/a[prolate_condition])**2
+    elif isinstance(a,Iterable) and not isinstance(b, Iterable):
+        eccentricity[prolate_condition] = 1 - (b/a[prolate_condition])**2
+    elif not isinstance(a,Iterable) and isinstance(b, Iterable):
+        eccentricity[prolate_condition] = 1 - (b[prolate_condition]/a)**2
     else:
-        return polarisability_sphere(epsilon, epsilon_media, a)
+        eccentricity[prolate_condition] = 1 - (b/a)**2
 
-    alpha = lambda L : 4*pi*epsilon*a*b**2*(epsilon - epsilon_media)/(3*epsilon_media+3*L*(epsilon-epsilon_media))
+    if isinstance(a,Iterable) and isinstance(c, Iterable):
+        eccentricity[oblate_condition] = 1 - (c[oblate_condition]/a[oblate_condition])**2
+    elif isinstance(a,Iterable) and not isinstance(c, Iterable):
+        eccentricity[oblate_condition] = 1 - (c/a[oblate_condition])**2
+    elif not isinstance(a,Iterable) and isinstance(c, Iterable):
+        eccentricity[oblate_condition] = 1 - (c[oblate_condition]/a)**2
+    else:
+        eccentricity[oblate_condition] = 1 - (c/a)**2
 
-    return array(((alpha(geometry_factor), 0, 0), (0, alpha(geometry_factor), 0), (0, 0, alpha(1-2*geometry_factor))))
+    g_eccentricity = sqrt((1-eccentricity[oblate_condition]**2)/eccentricity[oblate_condition]**2)
+
+    geometry_factor[oblate_condition] = g_eccentricity / (2*eccentricity[oblate_condition]**2) * (pi/2 - arctan(g_eccentricity))-g_eccentricity**2/2
+
+    geometry_factor[prolate_condition] = (1 - eccentricity[prolate_condition]**2)/eccentricity[prolate_condition]**2*(-1+1/(2*eccentricity[prolate_condition])*log((1+eccentricity[prolate_condition])/(1-eccentricity[prolate_condition])))
+
+    alpha_lambda = lambda L : 4*pi*a*b*c*(epsilon - epsilon_media)/(3*epsilon_media+3*L*(epsilon-epsilon_media))
+
+    condition = oblate_condition | prolate_condition #oblate or prolate
+
+    assert not any(oblate_condition & prolate_condition), "Can't be oblate and prolate at the same time!"
+
+    ##populates 3x3 diagonal positions
+
+    if any(condition):
+        alpha[::3, 0][condition] = alpha_lambda(geometry_factor[condition])
+        alpha[1::3, 1][condition] = alpha_lambda(geometry_factor[condition])
+        alpha[2::3, 2][condition] = alpha_lambda(1-2*geometry_factor[condition])
+
+    if any(sphere_condition):
+        sphere_alpha = polarisability_sphere(epsilon, epsilon_media, a[sphere_condition])
+        alpha[::3, 0][sphere_condition] = sphere_alpha
+        alpha[1::3, 1][sphere_condition] = sphere_alpha
+        alpha[2::3, 2][sphere_condition] = sphere_alpha
+
+    return eccentricity, alpha
 
 
 def induced_dipole_moment(E0, alpha, epsilon_media=1):
