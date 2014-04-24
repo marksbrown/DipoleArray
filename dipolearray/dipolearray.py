@@ -85,10 +85,10 @@ class metasurface(object):
         self.lattice = lattice
         self.epsilon_media = epsilon_media
 
-        if isinstance(alpha, float): #polarisability tensor
-            self.alpha = eye(3)*alpha
-        else:
+        if shape(alpha)==(3,3):
             self.alpha = alpha
+        else:
+            self.alpha = eye(3)*alpha #assumes number is passed, #TODO requires test to prevent stupidity here
 
 
     def structure_factor(self, adir, light, dist='analytical', verbose=0):
@@ -146,8 +146,11 @@ class metasurface(object):
         """
         Calculate the (time averaged) induced dipole moment due to an incident plane wave
         """
-
-        return self.epsilon_media*dot(self.alpha, E0)
+        try:
+            return self.epsilon_media*dot(self.alpha, E0)
+        except ValueError:
+            return array([[dot(self.alpha, vec) for vec in row] for row in E0]) #assumes 2D
+            #return self.epsilon_media*tensordot(self.alpha, E0, axes=[-1,-1])
 
     def periodic_lattice_positions(self):
         """
