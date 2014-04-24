@@ -8,5 +8,6 @@ setup(
     license='CRAPL',
     author='Mark S. Brown',
     author_email='contact@markbrown.io',
-    description='The differential cross section for a series of dipoles induced within a periodic array of scatterers is calculated'
+    description='The differential cross section for a series of dipoles induced within a periodic array of scatterers is calculated',
+    requires=['numpy', 'nose']
 )

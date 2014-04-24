@@ -1,3 +1,6 @@
+"""
+Tests for Dipole Array
+"""
 from __future__ import division, print_function
 from nose.tools import *
 import dipolearray as da
@@ -42,19 +45,14 @@ def test_structure_factor():
 
     print("wavenumber is {:2.0f} with array of{}x{}, with {} and {} steps in theta and phi respectively".format(k, N1[1], N2[1], steptheta, stepphi))
 
-
-    theta = linspace(-90*Degrees, 90*Degrees, steptheta)
-    phi = linspace(0*Degrees, 360*Degrees, stepphi)
-
-    theta, phi = meshgrid(theta, phi)
-
     SqL = [100*nm,0*Degrees,100*nm,90*Degrees]##Square Lattice
+    square_array = da.metasurface(N1, N2, SqL)
 
-    n0 = da.radial_direction_vector(theta, phi)
-    n1 = da.radial_direction_vector(0*Degrees, 0*Degrees)
+    n0 = da.radial_direction_vector(30*Degrees, 90*Degrees)
+    plane_waves = da.light(k, n0, steptheta = steptheta, stepphi = stepphi)
 
-    Fa = da.structure_factor(n0, n1, N1, N2, SqL, k, dist='analytical')
-    Fs = da.structure_factor(n0, n1, N1, N2, SqL, k, dist='sum')
+    Fa = square_array.structure_factor('z', plane_waves, dist='analytical', verbose=2)
+    Fs = square_array.structure_factor('z', plane_waves, dist='sum', verbose=2)
 
     assert_allclose(Fa, Fs, err_msg = "structure factors do not match from both methods!")
 

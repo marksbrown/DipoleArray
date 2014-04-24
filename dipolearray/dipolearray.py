@@ -11,12 +11,164 @@ factor and the resulting differential cross section.
 """
 from __future__ import division, print_function
 
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile
 from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis
 from collections import Iterable
 
+class light(object):
+    """
+    encapsulates properties relating to incoming and outgoing plane waves
+    """
+    def __init__(self, k, n0=array([0,0,1]), **kwargs):
+        self.k = k
+        self.steptheta = kwargs.pop('steptheta', 400)
+        self.stepphi = kwargs.pop('stepphi', 200)
+        self.incoming_vector = n0
 
-def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
+    def outgoing_vectors(self, adir, amplitudes=1):
+        """
+        Calculates 2D grid of outgoing vectors
+        """
+        theta, phi = angles_of_hemisphere(adir, self.steptheta, self.stepphi)
+        return radial_direction_vector(theta, phi, amplitudes)
+
+    def orthogonal_incident_polarisations(self, adir):
+        """
+        Orthogonal incident polarisations defined by scattering plane
+
+        returns (perpendicular, parallel) polarisations
+        """
+
+        n0 = self.incoming_vector
+        n1 = self.outgoing_vectors(adir)
+        
+        return cross(n0, n1), n1 - dot(n1, n0)[..., newaxis]*n0
+
+    def orthogonal_polarisations(self, adir):
+        """
+        Orthogonal incident polarisations defined by scattering plane
+
+        returns (perpendicular, parallel) polarisations
+        """
+        n0 = self.incoming_vector
+        n1 = self.outgoing_vectors(adir)
+
+        return cross(n0[..., newaxis], n1), n1*dot(n0[..., newaxis], n1) - n0[..., newaxis]
+
+    def direction_cosine(self, adir):
+        """
+        Direction cosines for cartesian unit vector 'x', 'y' or 'z' defined
+        for theta and phi using _AnglesOfHemisphere_
+        """
+        theta, phi = angles_of_hemisphere(adir, self.steptheta, self.stepphi)
+
+        if adir == "x":
+            return sin(phi) * sin(theta), cos(theta)  # y,z
+        elif adir == "y":
+            return cos(phi) * sin(theta), cos(theta)  # x,z
+        elif adir == "z":
+            return cos(phi) * sin(theta), sin(phi) * sin(theta)  # x,y
+        elif adir == "all":
+            return cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta)
+        else:
+            print("None Selected")
+            return
+
+class metasurface(object):
+    """
+    Metasurface defined by collection of scatterers
+    """
+    def __init__(self, x_scatterers, y_scatterers, lattice, alpha=1, epsilon_media=1):
+
+        self.x_scatterers = x_scatterers
+        self.y_scatterers = y_scatterers
+        self.lattice = lattice
+        self.epsilon_media = epsilon_media
+
+        if isinstance(alpha, float): #polarisability tensor
+            self.alpha = eye(3)*alpha
+        else:
+            self.alpha = alpha
+
+
+    def structure_factor(self, adir, light, dist='analytical', verbose=0):
+        """
+        Calculates the Structure Factor : F(q)
+
+        --args--
+        n0 : incident direction
+        n1 : outgoing directions
+        k : Wavenumber
+        x_scatterers : Number of points in first axis
+        y_scatterers : Number of points in second axis
+        lc : Lattice definition
+        verbose : verbosity control
+        """
+
+        d1, t1, d2, t2 = self.lattice
+
+        n0 = light.incoming_vector
+        n1 = light.outgoing_vectors(adir)
+
+        q = light.k*subtract(n0, n1)
+
+        exponent_factor = lambda length, angle: length*(q[...,0]*cos(angle)+q[...,1]*sin(angle))
+
+        N1 = ptp(self.x_scatterers)
+        N2 = ptp(self.y_scatterers)
+
+        if verbose > 0:
+            print("{0}x{1}".format(N1,N2))
+
+        if dist == "analytical":
+            #returns the analytical expression
+
+            structure_factor_1d = lambda N, f: where(f!=0, sin(N*f/2)**2/sin(f/2)**2, N**2)
+
+            Fx = structure_factor_1d(N1, exponent_factor(d1, t1))
+            Fy = structure_factor_1d(N2, exponent_factor(d2, t2))
+
+            return Fx * Fy
+
+        elif dist == "sum":
+
+            structure_factor_1d = lambda i, f: where(f!=0, exp(1j*i*f), 1)
+
+            Fx = sum([structure_factor_1d(n, exponent_factor(d1, t1)) for n in range(*self.x_scatterers)], axis=0)
+            Fx *= conj(Fx)
+
+            Fy = sum([structure_factor_1d(n, exponent_factor(d2, t2)) for n in range(*self.y_scatterers)], axis=0)
+            Fy *= conj(Fy)
+
+            return real(Fx) * real(Fy)
+
+    def induced_dipole_moment(self, E0):
+        """
+        Calculate the (time averaged) induced dipole moment due to an incident plane wave
+        """
+
+        return self.epsilon_media*dot(self.alpha, E0)
+
+    def periodic_lattice_positions(self):
+        """
+        Returns cartesian position of an array of points defined by the lattice
+        _lc_ with min/max numbers defined by the tuples _N1_ and _N2_
+        """
+        u1, u2 = meshgrid(range(*self.x_scatterers), range(*self.y_scatterers))  # grid of integers
+
+        dx, tx, dy, ty = self.lattice
+
+        xpos = lambda u, d, t: u * d * cos(t)
+        ypos = lambda u, d, t: u * d * sin(t)
+
+        X = xpos(u1, dx, tx) + xpos(u2, dy, ty)
+        Y = ypos(u1, dx, tx) + ypos(u2, dy, ty)
+        Z = zeros(shape(X))
+
+        return X, Y, Z
+
+
+def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0])):
     """
     Returns phase addition term due to incident wave
     n0: incident direction
@@ -26,24 +178,6 @@ def incident_phase_addition(n0, R, k, intersection=array([0, 0, 0]), verbose=0):
     verbose: verbosity control
     """
     return k * (dot(R, n0) + dot(intersection, n0))
-
-def periodic_lattice_positions(N1, N2, lc):
-    """
-    Returns cartesian position of an array of points defined by the lattice
-    _lc_ with min/max numbers defined by the tuples _N1_ and _N2_
-    """
-    u1, u2 = meshgrid(range(*N1), range(*N2))  # grid of integers
-
-    dx, tx, dy, ty = lc
-
-    xpos = lambda u, d, t: u * d * cos(t)
-    ypos = lambda u, d, t: u * d * sin(t)
-
-    X = xpos(u1, dx, tx) + xpos(u2, dy, ty)
-    Y = ypos(u1, dx, tx) + ypos(u2, dy, ty)
-    Z = zeros(shape(X))
-
-    return X, Y, Z
 
 
 def spherical_unit_vectors(theta=0, phi=0):
@@ -63,7 +197,7 @@ def spherical_unit_vectors(theta=0, phi=0):
     return r, th, ph
 
 
-def radial_direction_vector(theta=0, phi=0, amplitude=1, verbose=0):
+def radial_direction_vector(theta=0, phi=0, amplitude=1):
     """
     returns r unit vector in cartesian coordinates
     """
@@ -80,6 +214,7 @@ def angles_of_hemisphere(adir, steptheta=400, stepphi=400, meshed=True):
     adir : a chosen direction ('x' or 'y' or 'z')
     steptheta : number of steps in theta
     stepphi : number of steps in phi
+    meshed : return angles as 2D arrays?
     """
 
     Degrees = pi / 180
@@ -106,181 +241,12 @@ def angles_of_hemisphere(adir, steptheta=400, stepphi=400, meshed=True):
         return Theta, Phi
 
 
-def direction_cosine(adir, steptheta=400, stepphi=400):
-    """
-    Direction cosines for cartesian unit vector 'x', 'y' or 'z' defined
-    for theta and phi using _AnglesOfHemisphere_
-    """
-    theta, phi = angles_of_hemisphere(adir, steptheta=steptheta, stepphi=stepphi)
-
-    if adir == "x":
-        return sin(phi) * sin(theta), cos(theta)  # y,z
-    elif adir == "y":
-        return cos(phi) * sin(theta), cos(theta)  # x,z
-    elif adir == "z":
-        return cos(phi) * sin(theta), sin(phi) * sin(theta)  # x,y
-    elif adir == "all":
-        return cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta)
-    else:
-        print("None Selected")
-        return
-
-
-def differential_cross_section_single(F, n0, n1, k, const=True, split=False, verbose=0):
-    """
-    Differential cross section for unpolarised incident light
-
-    F : structure factor
-    n0 : incident direction
-    n1 : outgoing direction
-    k : wavenumber
-    const : include constants
-    """
-    mag = lambda mat: mat * conj(mat)
-
-    if const:
-        eps0 = 8.85418782E-12  # permittivity of free space
-        constterm = (k ** 2 / (4 * pi * eps0)) ** 2
-    else:
-        constterm = 1.0
-
-    if split:
-        return F * constterm * ones(shape(n1)), F * constterm * dot(n1, n0) ** 2
-    else:
-        return (F * constterm * (1 + dot(n1, n0) ** 2)).T
-
-
-def differential_cross_section_volume(n0, k, N1, N2, lc, adir, **kwargs):
-    """
-    Calculate the differential scattering cross section
-
-    ---args--
-    n0 - incident direction
-    k - wavenumber
-    N1, N2 - numbers of scatterers in X, Y
-    lc - lattice
-    adir - direction of interest
-    """
-
-    steptheta = kwargs.pop('steptheta', 400)
-    stepphi = kwargs.pop('stepphi', 200)
-    verbose = kwargs.pop('verbose', 0)
-    dist = kwargs.pop('dist', 'normal')
-    const = kwargs.get('const', False)
-
-    theta, phi = angles_of_hemisphere(adir, steptheta=steptheta, stepphi=stepphi)
-    n1 = radial_direction_vector(theta, phi, verbose=verbose)
-
-    if dist == 'analytical':
-        dsdo = combined_dipole_dpdo(n0, n1, k, const, verbose)
-
-    elif dist == 'single':
-        dsdo = electric_dipole_dpdo(n0, n1, k, const, verbose)
-
-    elif dist == 'normal':
-        F = structure_factor(n0, n1, N1, N2, lc, k, verbose=verbose)
-        dsdo = differential_cross_section_single(F, n0, n1, k=k, const=const, verbose=verbose)
-
-    else:
-        raise KeyError, "{0} is unknown".format(dist)
-
-    return theta, phi, dsdo
-
-
-
-
-
-def structure_factor(n0, n1, x_scatterers, y_scatterers, lc, k, dist='analytical', verbose=0):
-    """
-    Calculates the Structure Factor : F(q)
-
-    --args--
-    n0 : incident direction
-    n1 : outgoing directions
-    k : Wavenumber
-    x_scatterers : Number of points in first axis
-    y_scatterers : Number of points in second axis
-    lc : Lattice definition
-    verbose : verbosity control
-    """
-
-    d1, t1, d2, t2 = lc
-
-    q = k*subtract(n0, n1)
-
-    exponent_factor = lambda length, angle: length*(q[...,0]*cos(angle)+q[...,1]*sin(angle))
-
-    N1 = ptp(x_scatterers)
-    N2 = ptp(y_scatterers)
-
-    if verbose > 0:
-        print("{0}x{1}".format(N1,N2))
-
-    if dist == "analytical":
-        #returns the analytical expression
-
-        structure_factor_1d = lambda N, f: where(f!=0, sin(N*f/2)**2/sin(f/2)**2, N**2)
-
-        Fx = structure_factor_1d(N1, exponent_factor(d1, t1))
-        Fy = structure_factor_1d(N2, exponent_factor(d2, t2))
-
-        return (Fx * Fy)
-
-    elif dist == "sum":
-
-        structure_factor_1d = lambda i, f: where(f!=0, exp(1j*i*f), 1)
-
-        Fx = sum([structure_factor_1d(n, exponent_factor(d1, t1)) for n in range(*x_scatterers)], axis=0)
-        Fx *= conj(Fx)
-
-        Fy = sum([structure_factor_1d(n, exponent_factor(d2, t2)) for n in range(*y_scatterers)], axis=0)
-        Fy *= conj(Fy)
-
-        return (real(Fx) * real(Fy))
-
-#TODO - Determine if this is needed! : incident_phase_term = incident_phase_addition(n0, R, k, verbose=verbose)
-
-def combined_dipole_dpdo(n0, n1, k, const=False, verbose=0):
-    """
-    Combine two orthogonal electric dipoles to the incident direction to predict
-    the behaviour of unpolarised light
-    """
-
-    theta = arccos(n0[..., 2])
-    phi = arctan2(n0[..., 1], n0[..., 0])
-
-    n0, eperp, epara = spherical_unit_vectors(theta, phi)
-
-    return (electric_dipole_dpdo(n1, eperp, k, const, verbose) + electric_dipole_dpdo(n1, epara, k, const, verbose)).T
-
-
-def electric_dipole_dpdo(n1, p, k, const=False, verbose=0):
-    """
-    Power per unit solid angle for an electric dipole (eqn 9.22 Jackson)
-    """
-
-    if const:
-        mu0 = 4 * pi * 1e-7  # Permeability of free space
-        eps0 = 8.85418782E-12  # permittivity of free space
-        Zzero = sqrt(mu0 / eps0)  # Impedance of free space
-        c = 3E8  # speed of light
-        constterm = (c ** 2 * Zzero) / (32 * pi ** 2) * k ** 4
-    else:
-        constterm = 1.0
-
-    a = cross(n1, p)
-    a = cross(a, n1)
-
-    mag = lambda mat: sum(mat * conj(mat), axis=-1)
-
-    return real(constterm * mag(a))
-
-
 def polarisability_sphere(epsilon, epsilon_media, a):
     """
     Polarisability tensor of a sphere
     """
     return 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
+
 
 def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False, verbose=0):
     """
@@ -389,11 +355,3 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False
         return geometry_factor, eccentricity, alpha
     else:
         return eccentricity, alpha
-
-
-def induced_dipole_moment(E0, alpha, epsilon_media=1):
-    """
-    Calculate the (time averaged) induced dipole moment due to an incident plane wave
-    """
-
-    return epsilon_media*dot(alpha, E0)
