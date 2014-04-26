@@ -31,8 +31,6 @@ def structure_factor(axis, light, metasurface, adir='z', **kwargs):
     ctf = axis.contourf(phi, theta/Degrees,  F.T, N, label=dist, **kwargs)
     cb = axis.figure.colorbar(ctf, ax=axis, use_gridspec=True, format="%2.1e")
     cb.set_label("Structure Factor")
-    axis.set_xlabel("phi (Degrees)")
-    axis.set_ylabel("theta (Degrees)")
 
     return F
 
@@ -227,7 +225,7 @@ def farfield_surface_3D(axis, light, farfield_pattern, **kwargs):
     y = direction_vectors[..., 1] / maxnum
     z = direction_vectors[..., 2] / maxnum
 
-    axis.plot_surface(x, y, z, alpha=0.2, **kwargs)
+    axis.plot_surface(x, y, z, **kwargs)
 
     _to_cube(axis)
 

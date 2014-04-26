@@ -97,6 +97,41 @@ def differential_scattering_cross_section(light, metasurface, **kwargs):
 
     return farfield_pattern
 
+def differential_scattering_cross_section_polarised(light, metasurface, out=2, **kwargs):
+    """
+    Differential scattering cross section for induced dipole moment due to polarised light
+
+    adir : x, y, z, all
+    n0 : incident direction
+    p : dipole moment
+    k : wavenumber
+    metasurface : object defining the metasurface
+    """
+    dist = kwargs.pop('dist', 'analytical')  #analytical is quicker!
+    verbose = kwargs.pop('verbose', 0)
+
+    def farfield_pattern(adir):
+
+        eps0 = 8.85418782E-12  # permittivity of free space
+        constant_term = (light.k ** 2 / (4 * pi * eps0)) ** 2
+
+        induced_dipole = metasurface.induced_dipole_moment(light.incident_polarisation) #single induced dipole
+
+        epsilon_1, epsilon_2 = light.orthogonal_polarisations(adir)
+
+        return (dot(epsilon_1, induced_dipole)+dot(epsilon_2, induced_dipole))**2
+
+        F = metasurface.structure_factor(adir, light, dist=dist, verbose=verbose)
+
+        if out==0:
+            return (sum(constant_term * (dot(epsilon_1,induced_dipole)**2)**2) * F).T
+        elif out==1:
+            return (sum(constant_term * (dot(epsilon_2,induced_dipole)**2)**2) * F).T
+        if out ==2:
+            return (sum(constant_term * (dot(epsilon_1,induced_dipole)**2+dot(epsilon_1,induced_dipole)**2)) * F).T
+
+    return farfield_pattern
+
 
 # def differential_scattering_cross_section_polarised(adir, light, incident_polarisation, metasurface, **kwargs):
 #     """

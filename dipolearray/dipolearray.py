@@ -19,11 +19,12 @@ class light(object):
     """
     encapsulates properties relating to incoming and outgoing plane waves
     """
-    def __init__(self, k, n0=array([0,0,1]), **kwargs):
+    def __init__(self, k, n0=array([0,0,1]), steptheta=400, stepphi=200, incident_polarisation=None):
         self.k = k
-        self.steptheta = kwargs.pop('steptheta', 400)
-        self.stepphi = kwargs.pop('stepphi', 200)
+        self.steptheta = steptheta
+        self.stepphi = stepphi
         self.incoming_vector = n0
+        self.incident_polarisation = incident_polarisation #only works with polarised form of dsigma/domega
 
     def outgoing_vectors(self, adir, amplitudes=1):
         """
@@ -53,7 +54,7 @@ class light(object):
         n0 = self.incoming_vector
         n1 = self.outgoing_vectors(adir)
 
-        return cross(n0[..., newaxis], n1), n1*dot(n0[..., newaxis], n1) - n0[..., newaxis]
+        return cross(n0, n1), n1*dot(n1, n0[..., newaxis]) - n0
 
     def direction_cosine(self, adir):
         """
