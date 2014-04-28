@@ -11,8 +11,9 @@ factor and the resulting differential cross section.
 """
 from __future__ import division, print_function
 
-from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray, log10
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis, random
+from numpy import vstack
 from collections import Iterable
 
 class light(object):
@@ -142,6 +143,18 @@ class metasurface(object):
             Fy *= conj(Fy)
 
             return real(Fx) * real(Fy)
+
+    def structure_factor_plane_wave(self, light, dist='analytical', log=False, verbose=0):
+        """
+        Structure factor as form func(adir)
+        """
+        def structure_factor(adir):
+            if log:
+                return log10(self.structure_factor(adir, light, dist, verbose).T)
+            else:
+                return self.structure_factor(adir, light, dist, verbose).T
+
+        return structure_factor
 
     def induced_dipole_moment(self, E0):
         """
@@ -359,3 +372,58 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False
         return geometry_factor, eccentricity, alpha
     else:
         return eccentricity, alpha
+
+
+def isotropic_vectors(N, hemisphere=True):
+    """
+    Generates random points on a sphere
+    or on a hemisphere (default is sphere)
+    """
+    Values = []
+
+    while len(Values) < N:
+        x1 = 2 * random.random() - 1
+        x2 = 2 * random.random() - 1
+
+        if hemisphere:
+            if (x1 ** 2 + x2 ** 2 < 1) and (x1 ** 2 + x2 ** 2 < 0.5):
+                Values.append((x1, x2))
+        else:
+            if x1 ** 2 + x2 ** 2 < 1:
+                Values.append((x1, x2))
+
+    x1, x2 = zip(*Values)
+    x1 = array(x1)
+    x2 = array(x2)
+    x = 2 * x1 * sqrt(1 - x1 ** 2 - x2 ** 2)
+    y = 2 * x2 * sqrt(1 - x1 ** 2 - x2 ** 2)
+    z = 1 - 2 * (x1 ** 2 + x2 ** 2)
+
+    return array((x,y,z)).T
+
+def hemisphere_segment(N, mintheta=0, maxtheta=pi/6, verbose=0):
+    """
+    Returns N directions from sphere point picking (Marsaglia 1972)
+    """
+
+    while True:
+        ListOfDirections = isotropic_vectors(N)
+
+        mincondition = ListOfDirections[..., 2] < cos(mintheta)
+        maxcondition = ListOfDirections[..., 2] > cos(maxtheta)
+
+        try:  # matching directions aren't wasted when we generate more
+            AllowedDirections = vstack((AllowedDirections,
+                                        ListOfDirections[mincondition & maxcondition]))
+        except UnboundLocalError:
+            AllowedDirections = ListOfDirections[mincondition & maxcondition]
+
+        if verbose > 0:
+            print("Additional matching is", sum(mincondition & maxcondition))
+            print("Total is now", len(AllowedDirections))
+            print("Shape of AllowDirections is", shape(AllowedDirections))
+
+        if len(AllowedDirections) < N:
+            continue
+        else:
+            return AllowedDirections[:N]
