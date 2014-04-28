@@ -25,19 +25,22 @@ class light(object):
         self.steptheta = steptheta
         self.stepphi = stepphi
         self.incoming_vector = n0
-
+        self.outgoing_vectors = {adir : self.calculate_outgoing_vectors(adir) for adir in ['x', 'y', 'z', 'all']}
         if isinstance(incident_polarisation, Iterable):
             self.incident_polarisation = incident_polarisation
+        else:
+            self.incident_polarisation = {adir : self.orthogonal_incident_polarisations(adir) for adir in ['x', 'y', 'z', 'all']}
 
+        self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in ['x', 'y', 'z', 'all']}
 
-    def outgoing_vectors(self, adir, amplitudes=1):
+    def calculate_outgoing_vectors(self, adir, amplitudes=1):
         """
         Calculates 2D grid of outgoing vectors
         """
         theta, phi = angles_of_hemisphere(adir, self.steptheta, self.stepphi)
         return radial_direction_vector(theta, phi, amplitudes)
 
-    def orthogonal_incident_polarisations(self, n1):
+    def orthogonal_incident_polarisations(self, adir):
         """
         Orthogonal incident polarisations defined by scattering plane
 
@@ -45,16 +48,18 @@ class light(object):
         """
 
         n0 = self.incoming_vector
+        n1 = self.outgoing_vectors[adir]
 
         return cross(n0, n1), n1 - dot(n1, n0)[..., newaxis]*n0
 
-    def orthogonal_polarisations(self, n1):
+    def orthogonal_polarisations(self, adir):
         """
         Orthogonal incident polarisations defined by scattering plane
 
         returns (perpendicular, parallel) polarisations
         """
         n0 = self.incoming_vector
+        n1 = self.outgoing_vectors[adir]
 
         return cross(n0, n1), n1*dot(n1, n0[..., newaxis]) - n0
 
@@ -94,7 +99,7 @@ class metasurface(object):
             self.alpha = eye(3)*alpha #assumes number is passed, #TODO requires test to prevent stupidity here
 
 
-    def structure_factor(self, adir, light, n1, dist='analytical', verbose=0):
+    def structure_factor(self, adir, light, dist='analytical', verbose=0):
         """
         Calculates the Structure Factor : F(q)
 
@@ -111,6 +116,7 @@ class metasurface(object):
         d1, t1, d2, t2 = self.lattice
 
         n0 = light.incoming_vector
+        n1 = light.outgoing_vectors[adir]
 
         q = light.k*subtract(n0, n1)
 

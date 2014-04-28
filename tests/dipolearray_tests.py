@@ -51,8 +51,8 @@ def test_structure_factor():
     n0 = da.radial_direction_vector(30*Degrees, 90*Degrees)
     plane_waves = da.light(k, n0, steptheta = steptheta, stepphi = stepphi)
 
-    Fa = square_array.structure_factor('z', plane_waves, plane_waves.outgoing_vectors('z'), dist='analytical', verbose=2)
-    Fs = square_array.structure_factor('z', plane_waves, plane_waves.outgoing_vectors('z'), dist='sum', verbose=2)
+    Fa = square_array.structure_factor('z', plane_waves, dist='analytical', verbose=2)
+    Fs = square_array.structure_factor('z', plane_waves, dist='sum', verbose=2)
 
     assert_allclose(Fa, Fs, err_msg = "structure factors do not match from both methods!")
 

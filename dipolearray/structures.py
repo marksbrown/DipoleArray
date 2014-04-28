@@ -30,11 +30,11 @@ def structure_factor_plane_wave(light, metasurface, **kwargs):
     verbose = kwargs.pop('verbose', 0)
 
     def structure_factor(adir):
-        n1 = light.outgoing_vectors(adir)
+        n1 = light.outgoing_vectors[adir]
         if log:
-            return log10(metasurface.structure_factor(adir, light, n1, dist, verbose).T)
+            return log10(metasurface.structure_factor(adir, light, dist, verbose).T)
         else:
-            return metasurface.structure_factor(adir, light, n1, dist, verbose).T
+            return metasurface.structure_factor(adir, light, dist, verbose).T
 
     return structure_factor
 
@@ -54,7 +54,7 @@ def electric_dipole(light, p):
         c = 3E8  # speed of light
         constant_term = (c ** 2 * Zzero) / (32 * pi ** 2) * light.k ** 4
 
-        n1 = light.outgoing_vectors(adir)
+        n1 = light.outgoing_vectors[adir]
 
         a = cross(n1, p)
         a = cross(a, n1)
@@ -100,14 +100,14 @@ def differential_scattering_cross_section(light, metasurface, **kwargs):
         constant_term = (light.k ** 2 / (4 * pi * eps0)) ** 2
 
         n0 = light.incoming_vector
-        n1 = light.outgoing_vectors(adir)
+        n1 = light.outgoing_vectors[adir]
 
-        epsilon_1, epsilon_2 = light.orthogonal_incident_polarisations(n1)
+        epsilon_1, epsilon_2 = light.incident_polarisation[adir]
 
         induced_dipole_one = metasurface.induced_dipole_moment(epsilon_1)
         induced_dipole_two = metasurface.induced_dipole_moment(epsilon_2)
 
-        F = metasurface.structure_factor(adir, light, n1, dist=dist, verbose=verbose)
+        F = metasurface.structure_factor(adir, light, dist=dist, verbose=verbose)
 
         return (sum(constant_term * (induced_dipole_one ** 2 + dot(n1, n0)[..., newaxis] ** 2 *induced_dipole_two ** 2), axis=-1) *F).T
 
@@ -133,8 +133,8 @@ def differential_scattering_cross_section_polarised(light, metasurface, out=2, *
 
         induced_dipole = metasurface.induced_dipole_moment(light.incident_polarisation) #single induced dipole
 
-        n1 = light.outgoing_vectors(adir)
-        epsilon_1, epsilon_2 = light.orthogonal_polarisations(n1)
+        n1 = light.outgoing_vectors[adir]
+        epsilon_1, epsilon_2 = light.orthogonal_polarisations[adir]
 
         #return (dot(epsilon_1, induced_dipole)+dot(epsilon_2, induced_dipole))**2
 
