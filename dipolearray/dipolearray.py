@@ -25,7 +25,10 @@ class light(object):
         self.steptheta = steptheta
         self.stepphi = stepphi
         self.incoming_vector = n0
-        self.incident_polarisation = incident_polarisation #only works with polarised form of dsigma/domega
+
+        if isinstance(incident_polarisation, Iterable):
+            self.incident_polarisation = incident_polarisation
+
 
     def outgoing_vectors(self, adir, amplitudes=1):
         """
@@ -34,7 +37,7 @@ class light(object):
         theta, phi = angles_of_hemisphere(adir, self.steptheta, self.stepphi)
         return radial_direction_vector(theta, phi, amplitudes)
 
-    def orthogonal_incident_polarisations(self, adir):
+    def orthogonal_incident_polarisations(self, n1):
         """
         Orthogonal incident polarisations defined by scattering plane
 
@@ -42,18 +45,16 @@ class light(object):
         """
 
         n0 = self.incoming_vector
-        n1 = self.outgoing_vectors(adir)
-        
+
         return cross(n0, n1), n1 - dot(n1, n0)[..., newaxis]*n0
 
-    def orthogonal_polarisations(self, adir):
+    def orthogonal_polarisations(self, n1):
         """
         Orthogonal incident polarisations defined by scattering plane
 
         returns (perpendicular, parallel) polarisations
         """
         n0 = self.incoming_vector
-        n1 = self.outgoing_vectors(adir)
 
         return cross(n0, n1), n1*dot(n1, n0[..., newaxis]) - n0
 
@@ -93,7 +94,7 @@ class metasurface(object):
             self.alpha = eye(3)*alpha #assumes number is passed, #TODO requires test to prevent stupidity here
 
 
-    def structure_factor(self, adir, light, dist='analytical', verbose=0):
+    def structure_factor(self, adir, light, n1, dist='analytical', verbose=0):
         """
         Calculates the Structure Factor : F(q)
 
@@ -110,7 +111,6 @@ class metasurface(object):
         d1, t1, d2, t2 = self.lattice
 
         n0 = light.incoming_vector
-        n1 = light.outgoing_vectors(adir)
 
         q = light.k*subtract(n0, n1)
 
@@ -149,10 +149,11 @@ class metasurface(object):
         Structure factor as form func(adir)
         """
         def structure_factor(adir):
+            n1 = light.outgoing_vectors(adir)
             if log:
-                return log10(self.structure_factor(adir, light, dist, verbose).T)
+                return log10(self.structure_factor(adir, light, n1, dist, verbose).T)
             else:
-                return self.structure_factor(adir, light, dist, verbose).T
+                return self.structure_factor(adir, light, n1, dist, verbose).T
 
         return structure_factor
 
