@@ -25,7 +25,7 @@ def structure_factor(axis, light, metasurface, adir='z', **kwargs):
     verbose = kwargs.pop('verbose', 0)
     dist = kwargs.pop('dist', 'analytical')
 
-    F = metasurface.structure_factor(adir, light, light.outgoing_vectors(adir), dist=dist, verbose=verbose)
+    F = metasurface.structure_factor(adir, light, dist=dist, verbose=verbose)
     theta, phi = da.angles_of_hemisphere(adir, light.steptheta, light.stepphi)
 
     ctf = axis.contourf(phi, theta/Degrees,  F.T, N, label=dist, **kwargs)

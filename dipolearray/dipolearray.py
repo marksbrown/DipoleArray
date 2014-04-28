@@ -131,12 +131,14 @@ class metasurface(object):
         if dist == "analytical":
             #returns the analytical expression
 
-            structure_factor_1d = lambda N, f: where(f!=0, sin(N*f/2)**2/sin(f/2)**2, N**2)
 
-            Fx = structure_factor_1d(N1, exponent_factor(d1, t1))
-            Fy = structure_factor_1d(N2, exponent_factor(d2, t2))
+            fx = exponent_factor(d1, t1)
+            fy = exponent_factor(d2, t2)
 
-            return Fx * Fy
+            F = sin(N1*fx/2)**2/sin(fx/2)**2*sin(N2*fy/2)**2/sin(fy/2)**2
+            F[(fx==0) |(fy==0)] = N1**2+N2**2
+
+            return F
 
         elif dist == "sum":
 
