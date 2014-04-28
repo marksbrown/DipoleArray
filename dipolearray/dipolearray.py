@@ -13,7 +13,7 @@ from __future__ import division, print_function
 
 from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray, log10
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis, random
-from numpy import vstack
+from numpy import vstack, einsum
 from collections import Iterable
 
 class light(object):
@@ -163,8 +163,7 @@ class metasurface(object):
         try:
             return self.epsilon_media*dot(self.alpha, E0)
         except ValueError:
-            return array([[dot(self.alpha, vec) for vec in row] for row in E0]) #assumes 2D
-            #return self.epsilon_media*tensordot(self.alpha, E0, axes=[-1,-1])
+            return einsum('ij,...klj->...kli', self.alpha, E0)
 
     def periodic_lattice_positions(self):
         """
