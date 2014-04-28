@@ -138,6 +138,28 @@ def farfield_polar_2D(axes, light, farfield_pattern, **kwargs):
         cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
 
 
+def farfield_direction_cosines_z(ax, light, farfield_pattern, **kwargs):
+    """
+    Generate single hemisphere in z only
+    """
+
+    N = kwargs.pop("N", 100)
+    dsdo = farfield_pattern('z')
+
+    dsdo[isnan(dsdo)] = 0
+    dsdo /= max(dsdo)
+
+    ux, uy = light.direction_cosine('z')
+
+    plotkwargs = {'N': N, 'zdir' : 'z', 'levels' : linspace(0, 1, N)}
+    plotkwargs = dict(plotkwargs.items()+kwargs.items())
+
+    ctf = ax.contourf(ux, uy, dsdo, **plotkwargs)
+    cb = ax.figure.colorbar(ctf, ax=ax, use_gridspec=True, shrink=0.5)
+    cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
+    cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
+
+
 def farfield_direction_cosines_2D(axes, light, farfield_pattern, **kwargs):
     """
     Generate 3 polar contour plots of farfield pattern using
