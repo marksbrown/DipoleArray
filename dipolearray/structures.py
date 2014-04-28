@@ -17,10 +17,26 @@ This function will be represented by additional functions in the _plot.py_ file
 """
 
 from __future__ import division
-from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray, log10
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis
 from . import dipolearray as da
 
+def structure_factor_plane_wave(light, metasurface, **kwargs):
+    """
+    Structure factor as form func(adir)
+    """
+
+    dist = kwargs.pop('dist', 'analytical')  #analytical is quicker!
+    verbose = kwargs.pop('verbose', 0)
+
+    def structure_factor(adir):
+        n1 = light.outgoing_vectors(adir)
+        if log:
+            return log10(metasurface.structure_factor(adir, light, n1, dist, verbose).T)
+        else:
+            return metasurface.structure_factor(adir, light, n1, dist, verbose).T
+
+    return structure_factor
 
 def electric_dipole(light, p):
     """

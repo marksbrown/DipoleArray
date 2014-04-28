@@ -144,18 +144,6 @@ class metasurface(object):
 
             return real(Fx) * real(Fy)
 
-    def structure_factor_plane_wave(self, light, dist='analytical', log=False, verbose=0):
-        """
-        Structure factor as form func(adir)
-        """
-        def structure_factor(adir):
-            n1 = light.outgoing_vectors(adir)
-            if log:
-                return log10(self.structure_factor(adir, light, n1, dist, verbose).T)
-            else:
-                return self.structure_factor(adir, light, n1, dist, verbose).T
-
-        return structure_factor
 
     def induced_dipole_moment(self, E0):
         """
