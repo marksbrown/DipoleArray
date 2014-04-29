@@ -10,30 +10,6 @@ from numpy import invert, isnan, linspace
 from . import dipolearray as da
 
 
-def structure_factor(axis, light, metasurface, adir='z', **kwargs):
-    """
-    Plots the structure factor for the metasurface given
-    axis : matplotlib subplot instance
-    light : light class object instance
-    metasurface : metasurface object instance
-    adir : direction of interest
-    """
-
-    Degrees = pi/180
-
-    N = kwargs.pop('N', 100)
-    verbose = kwargs.pop('verbose', 0)
-    dist = kwargs.pop('dist', 'analytical')
-
-    F = metasurface.structure_factor(adir, light, dist=dist, verbose=verbose)
-    theta, phi = da.angles_of_hemisphere(adir, light.steptheta, light.stepphi)
-
-    ctf = axis.contourf(phi, theta/Degrees,  F.T, N, label=dist, **kwargs)
-    cb = axis.figure.colorbar(ctf, ax=axis, use_gridspec=True, format="%2.1e")
-    cb.set_label("Structure Factor")
-
-    return F
-
 def lattice(axis, metasurface, **kwargs):
     """
     Plots given Bravais lattice
@@ -89,9 +65,10 @@ def lattice(axis, metasurface, **kwargs):
 
     return X, Y, Z
 
-def farfield_polar_2D(axes, light, farfield_pattern, **kwargs):
+
+def farfield_polar_2D(axes, light, farfield_pattern, directions='xyz', **kwargs):
     """
-    Plots the far field pattern onto a polar contour plot
+    Plots the far field pattern onto polar contour plots for the directions provided
 
     axes : 3 matplotlib subplot instances in list with polar=True active
     light : light object for system
@@ -101,14 +78,15 @@ def farfield_polar_2D(axes, light, farfield_pattern, **kwargs):
     Degrees = pi/180
     N = kwargs.pop("N", 100)
 
-    for j, adir in enumerate(['x', 'y', 'z']):
+    assert len(axes)==len(directions), "Ambiguous number of axes provided!"
+
+    for j, adir in enumerate(directions):
         dsdo = farfield_pattern(adir)
 
         dsdo[isnan(dsdo)] = 0
         dsdo /= max(dsdo)
 
         outgoing_directions = light.outgoing_vectors[adir]
-
 
         if adir == 'x':
             theta = arccos(outgoing_directions[...,0]).T
@@ -120,7 +98,7 @@ def farfield_polar_2D(axes, light, farfield_pattern, **kwargs):
             theta = arccos(outgoing_directions[...,2]).T
             phi = arctan2(outgoing_directions[...,1], outgoing_directions[...,0]).T
 
-        plotkwargs = {'N': N, 'zdir' : adir, 'levels' : linspace(0, 1, N)}
+        plotkwargs = {'N': N, 'zdir': adir, 'levels': linspace(0, 1, N)}
 
         plotkwargs = dict(plotkwargs.items()+kwargs.items())
 
@@ -138,32 +116,10 @@ def farfield_polar_2D(axes, light, farfield_pattern, **kwargs):
         cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
 
 
-def farfield_direction_cosines_z(ax, light, farfield_pattern, **kwargs):
+def farfield_direction_cosines_2D(axes, light, farfield_pattern, directions='xyz', **kwargs):
     """
-    Generate single hemisphere in z only
-    """
-
-    N = kwargs.pop("N", 100)
-    dsdo = farfield_pattern('z')
-
-    dsdo[isnan(dsdo)] = 0
-    dsdo /= max(dsdo)
-
-    ux, uy = light.direction_cosine('z')
-
-    plotkwargs = {'N': N, 'zdir' : 'z', 'levels' : linspace(0, 1, N)}
-    plotkwargs = dict(plotkwargs.items()+kwargs.items())
-
-    ctf = ax.contourf(ux, uy, dsdo, **plotkwargs)
-    cb = ax.figure.colorbar(ctf, ax=ax, use_gridspec=True, shrink=0.5)
-    cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
-    cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
-
-
-def farfield_direction_cosines_2D(axes, light, farfield_pattern, **kwargs):
-    """
-    Generate 3 polar contour plots of farfield pattern using
-    direction cosines due to dipole array.
+    Generate polar contour plots of farfield pattern using
+    direction cosines on to the directions provided
 
     ---Args---
     axes : 3 matplotlib subplot instances in a list
@@ -175,7 +131,7 @@ def farfield_direction_cosines_2D(axes, light, farfield_pattern, **kwargs):
     """
     N = kwargs.pop("N", 100)
 
-    for j, adir in enumerate(['x', 'y', 'z']):
+    for j, adir in enumerate(directions):
         dsdo = farfield_pattern(adir)
 
         dsdo[isnan(dsdo)] = 0
@@ -183,7 +139,7 @@ def farfield_direction_cosines_2D(axes, light, farfield_pattern, **kwargs):
 
         ux, uy = light.direction_cosine(adir)
 
-        plotkwargs = {'N': N, 'zdir' : adir, 'levels' : linspace(0, 1, N)}
+        plotkwargs = {'N': N, 'zdir': adir, 'levels': linspace(0, 1, N)}
 
         plotkwargs = dict(plotkwargs.items()+kwargs.items())
 
@@ -252,16 +208,16 @@ def farfield_surface_3D(axis, light, farfield_pattern, **kwargs):
     _to_cube(axis)
 
 
-def _to_cube(axis, cubeedge=1, size=20):
+def _to_cube(axis, cube_edge=1, size=20):
     """
     Sets 3D axis to cube
     """
     axis.set_xlabel("x", size=size)
     axis.set_ylabel("y", size=size)
     axis.set_zlabel("z", size=size)
-    axis.set_xlim(-cubeedge, cubeedge)
-    axis.set_ylim(-cubeedge, cubeedge)
-    axis.set_zlim(-cubeedge, cubeedge)
+    axis.set_xlim(-cube_edge, cube_edge)
+    axis.set_ylim(-cube_edge, cube_edge)
+    axis.set_zlim(-cube_edge, cube_edge)
 
 
 def _fetch_max_dimension(x, y, z):

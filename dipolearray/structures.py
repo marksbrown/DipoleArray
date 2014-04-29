@@ -28,10 +28,11 @@ def structure_factor_plane_wave(light, metasurface, **kwargs):
 
     dist = kwargs.pop('dist', 'analytical')  #analytical is quicker!
     verbose = kwargs.pop('verbose', 0)
+    log_plot= kwargs.pop('log_plot', False)
 
     def structure_factor(adir):
         n1 = light.outgoing_vectors[adir]
-        if log:
+        if log_plot:
             return log10(metasurface.structure_factor(adir, light, dist, verbose).T)
         else:
             return metasurface.structure_factor(adir, light, dist, verbose).T
