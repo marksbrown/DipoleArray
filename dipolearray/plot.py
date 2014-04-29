@@ -8,8 +8,6 @@ from numpy import ptp, min, max, pi, arccos, arctan2
 from numpy import invert, isnan, linspace, log10
 from collections import Iterable
 
-from . import dipolearray as da
-
 
 def lattice(axis, metasurface, **kwargs):
     """
