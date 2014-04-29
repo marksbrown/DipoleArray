@@ -107,7 +107,7 @@ def farfield_polar_2D(axes, light, farfield_pattern, **kwargs):
         dsdo[isnan(dsdo)] = 0
         dsdo /= max(dsdo)
 
-        outgoing_directions = light.outgoing_vectors(adir)
+        outgoing_directions = light.outgoing_vectors[adir]
 
 
         if adir == 'x':
@@ -240,7 +240,7 @@ def farfield_surface_3D(axis, light, farfield_pattern, **kwargs):
     dsdo = farfield_pattern('all')
     dsdo[isnan(dsdo)] = 0
 
-    direction_vectors = light.outgoing_vectors('all', amplitudes=dsdo)
+    direction_vectors = light.calculate_outgoing_vectors('all', amplitudes=dsdo)
 
     maxnum = max(direction_vectors)
     x = direction_vectors[..., 0] / maxnum
