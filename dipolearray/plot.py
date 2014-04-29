@@ -6,6 +6,7 @@ from __future__ import division, print_function
 
 from numpy import ptp, min, max, pi, arccos, arctan2
 from numpy import invert, isnan, linspace
+from collections import Iterable
 
 from . import dipolearray as da
 
@@ -73,12 +74,16 @@ def farfield_polar_2D(axes, light, farfield_pattern, directions='xyz', **kwargs)
     axes : 3 matplotlib subplot instances in list with polar=True active
     light : light object for system
     farfield_pattern : function of form func(adir) to return far field pattern in _adir_ direction
+    directions : directions to plot
     """
 
     Degrees = pi/180
     N = kwargs.pop("N", 100)
 
-    assert len(axes)==len(directions), "Ambiguous number of axes provided!"
+    if not isinstance(axes, Iterable):
+        axes = [axes]
+
+    assert len(axes) == len(directions), "Ambiguous number of axes provided!"
 
     for j, adir in enumerate(directions):
         dsdo = farfield_pattern(adir)
@@ -125,11 +130,17 @@ def farfield_direction_cosines_2D(axes, light, farfield_pattern, directions='xyz
     axes : 3 matplotlib subplot instances in a list
     light : light class object
     farfield_pattern : function to generate farfield pattern
+    directions : directions to plot
 
     --Kwargs--
     verbose : verbosity control
     """
     N = kwargs.pop("N", 100)
+
+    if not isinstance(axes, Iterable):
+        axes = [axes]
+
+    assert len(axes) == len(directions), "Ambiguous number of axes provided!"
 
     for j, adir in enumerate(directions):
         dsdo = farfield_pattern(adir)
@@ -151,7 +162,7 @@ def farfield_direction_cosines_2D(axes, light, farfield_pattern, directions='xyz
         cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
 
 
-def farfield_direction_cosines_3D(axis, light, farfield_pattern, **kwargs):
+def farfield_direction_cosines_3D(axis, light, farfield_pattern, directions='xyz', **kwargs):
     """
     Generate 3 polar contour plots of farfield pattern using
     direction cosines due to dipole array.
@@ -160,13 +171,19 @@ def farfield_direction_cosines_3D(axis, light, farfield_pattern, **kwargs):
     axes : 3 matplotlib subplot instances in a list
     light : light class object
     farfield_pattern : function to generate farfield pattern
+    directions : directions to plot
 
     --Kwargs--
     verbose : verbosity control
     """
     N = kwargs.pop("N", 100)
 
-    for adir in ['x', 'y', 'z']:
+    if not isinstance(axes, Iterable):
+        axes = [axes]
+
+    assert len(axes) == len(directions), "Ambiguous number of axes provided!"
+
+    for adir in directions:
         dsdo = farfield_pattern(adir)
 
         dsdo[isnan(dsdo)] = 0
