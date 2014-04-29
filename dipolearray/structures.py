@@ -17,8 +17,8 @@ This function will be represented by additional functions in the _plot.py_ file
 """
 
 from __future__ import division
-from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray, log10
-from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis
+from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray, log10, max
+from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis, mean, std
 from . import dipolearray as da
 
 def structure_factor_plane_wave(light, metasurface, **kwargs):
@@ -36,7 +36,7 @@ def structure_factor_plane_wave(light, metasurface, **kwargs):
 
     return structure_factor
 
-def electric_dipole(light, p):
+def electric_dipole(light, p, verbose=0):
     """
     Power per unit solid angle for an electric dipole (eqn 9.22 Jackson)
     """
@@ -45,6 +45,8 @@ def electric_dipole(light, p):
         """
         Far field pattern for a single electric dipoles
         """
+        if verbose > 0:
+            print("direction : {}".format(adir))
 
         mu0 = 4 * pi * 1e-7  # Permeability of free space
         eps0 = 8.85418782E-12  # permittivity of free space
@@ -58,6 +60,10 @@ def electric_dipole(light, p):
         a = cross(a, n1)
 
         mag = lambda mat: sum(mat * conj(mat), axis=-1)
+
+        if verbose > 0:
+            a_dipole = real(constant_term * mag(a)).T
+            print("max dipole moment is {}\nmean dipole moment is {}\nwith standard deviation {}".format(max(a_dipole), mean(a_dipole), std(a_dipole)))
 
         return real(constant_term * mag(a)).T
 
@@ -94,6 +100,8 @@ def differential_scattering_cross_section(light, metasurface, **kwargs):
 
     def farfield_pattern(adir):
 
+        if verbose > 0:
+            print("direction : {}".format(adir))
         eps0 = 8.85418782E-12  # permittivity of free space
         constant_term = (light.k ** 2 / (4 * pi * eps0)) ** 2
 
@@ -104,6 +112,10 @@ def differential_scattering_cross_section(light, metasurface, **kwargs):
 
         induced_dipole_one = metasurface.induced_dipole_moment(epsilon_1)
         induced_dipole_two = metasurface.induced_dipole_moment(epsilon_2)
+
+        if verbose > 0:
+            for a_dipole in [induced_dipole_one, induced_dipole_two]:
+                print("max dipole moment is {}\nmean dipole moment is {}\nwith standard deviation {}".format(max(a_dipole), mean(a_dipole), std(a_dipole)))
 
         F = metasurface.structure_factor(adir, light, dist=dist, verbose=verbose)
 
