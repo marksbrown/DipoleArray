@@ -5,7 +5,7 @@ Plotting functions for dipolearray (requires matplotlib >= 1.1.0)
 from __future__ import division, print_function
 
 from numpy import ptp, min, max, pi, arccos, arctan2
-from numpy import invert, isnan, linspace
+from numpy import invert, isnan, linspace, log10
 from collections import Iterable
 
 from . import dipolearray as da
@@ -67,10 +67,12 @@ def lattice(axis, metasurface, **kwargs):
     return X, Y, Z
 
 
-def farfield_polar_2D(axes, light, farfield_pattern, directions='xyz', **kwargs):
-    """
-    Plots the far field pattern onto polar contour plots for the directions provided
 
+def plot_2d(plot_type, axes, light, farfield_pattern, directions='xyz', **kwargs):
+    """
+    Plots the _far field pattern_ (or any function of form func(adir)) onto plots for the directions provided
+
+    plot_type : 'polar', 'dc2d', 'dc3d' (polar, direction cosine 2d, direction cosine 3d)
     axes : 3 matplotlib subplot instances in list with polar=True active
     light : light object for system
     farfield_pattern : function of form func(adir) to return far field pattern in _adir_ direction
@@ -79,133 +81,106 @@ def farfield_polar_2D(axes, light, farfield_pattern, directions='xyz', **kwargs)
 
     Degrees = pi/180
     N = kwargs.pop("N", 100)
+    log_scale = kwargs.pop("log_scale", False)
+    normalised = kwargs.pop("normalised", True)
+    verbose = kwargs.pop("verbose", 0)
+
 
     if not isinstance(axes, Iterable):
         axes = [axes]
-
-    assert len(axes) == len(directions), "Ambiguous number of axes provided!"
 
     for j, adir in enumerate(directions):
+
+        if verbose > 0:
+                print("On run {} plotting in {} direction for {} plot".format(j, adir, plot_type))
+
         dsdo = farfield_pattern(adir)
 
         dsdo[isnan(dsdo)] = 0
-        dsdo /= max(dsdo)
 
-        outgoing_directions = light.outgoing_vectors[adir]
+        if log_scale:
+            dsdo = log10(dsdo)
 
-        if adir == 'x':
-            theta = arccos(outgoing_directions[...,0]).T
-            phi = arctan2(outgoing_directions[...,2], outgoing_directions[...,1]).T
-        if adir == 'y':
-            theta = arccos(outgoing_directions[...,1]).T
-            phi = arctan2(outgoing_directions[...,2], outgoing_directions[...,0]).T
-        if adir == 'z':
-            theta = arccos(outgoing_directions[...,2]).T
-            phi = arctan2(outgoing_directions[...,1], outgoing_directions[...,0]).T
+        if normalised:
+            default_plot_kwargs = {'levels': linspace(0, 1, N)}
+            dsdo /= max(dsdo)
+        else:
+            default_plot_kwargs = {'levels': linspace(0, max(dsdo), N)}
 
-        plotkwargs = {'N': N, 'zdir': adir, 'levels': linspace(0, 1, N)}
 
-        plotkwargs = dict(plotkwargs.items()+kwargs.items())
+        if plot_type == 'polar':
 
-        axes[j].set_title(adir)
+            assert len(axes) == len(directions), "Ambiguous number of axes provided!"
+            outgoing_directions = light.outgoing_vectors[adir]
 
-        if adir == 'x':
-            ctf = axes[j].contourf(phi, theta/Degrees, dsdo, **plotkwargs)
-        elif adir == 'y':
-            ctf = axes[j].contourf(phi, theta/Degrees, dsdo, **plotkwargs)
-        elif adir == 'z':
-            ctf = axes[j].contourf(phi, theta/Degrees, dsdo, **plotkwargs)
+            if adir == 'x':
+                theta = arccos(outgoing_directions[...,0]).T
+                phi = arctan2(outgoing_directions[...,2], outgoing_directions[...,1]).T
+            if adir == 'y':
+                theta = arccos(outgoing_directions[...,1]).T
+                phi = arctan2(outgoing_directions[...,2], outgoing_directions[...,0]).T
+            if adir == 'z':
+                theta = arccos(outgoing_directions[...,2]).T
+                phi = arctan2(outgoing_directions[...,1], outgoing_directions[...,0]).T
 
-        cb = axes[j].figure.colorbar(ctf, ax=axes[j], use_gridspec=True, shrink=0.5)
-        cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
+            plot_kwargs = dict(default_plot_kwargs.items()+kwargs.items())
+
+            axes[j].set_title(adir)
+
+            if adir == 'x':
+                ctf = axes[j].contourf(phi, theta/Degrees, dsdo, **plot_kwargs)
+            elif adir == 'y':
+                ctf = axes[j].contourf(phi, theta/Degrees, dsdo, **plot_kwargs)
+            elif adir == 'z':
+                ctf = axes[j].contourf(phi, theta/Degrees, dsdo, **plot_kwargs)
+
+            _add_colorbar(axes[j], ctf, normalised)
+
+        elif plot_type == 'dc_2d':
+
+            assert len(axes) == len(directions), "Ambiguous number of axes provided!"
+            ux, uy = light.direction_cosine(adir)
+
+
+            plot_kwargs = dict(default_plot_kwargs.items()+kwargs.items())
+
+            axes[j].set_title(adir)
+            ctf = axes[j].contourf(ux, uy, dsdo,  **plot_kwargs)
+
+            _add_colorbar(axes[j], ctf, normalised)
+
+        elif plot_type == 'dc_3d':
+            ux, uy = light.direction_cosine(adir)
+
+            extra_kwargs = {'zdir': adir, 'offset' : -1*(-1)**(adir=='y')}
+            plot_kwargs = dict(default_plot_kwargs.items()+extra_kwargs.items()+kwargs.items())
+
+            if adir == 'x':
+                axes[0].contourf(dsdo, ux, uy, **plot_kwargs)
+            elif adir == 'y':
+                axes[0].contourf(ux, dsdo, uy,  **plot_kwargs)
+            elif adir == 'z':
+                ctf = axes[0].contourf(ux, uy, dsdo,  **plot_kwargs)
+                _add_colorbar(axes[0], ctf, normalised)          # add for z plot only
+        else:
+            raise KeyError, "Plot type is unknown!"
+
+
+def _add_colorbar(axis, ctf, normalised):
+    """
+    Adds matplotlib colorbar to passes axis instance
+    """
+
+    cb = axis.figure.colorbar(ctf, ax=axis, use_gridspec=True, shrink=0.5)
+
+    if normalised:
+        cb.set_label("Normalised Absolute \nElectric Field Squared", size=15)
         cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
+    else:
+        cb.set_label("Absolute \nElectric Field Squared", size=15)
 
 
-def farfield_direction_cosines_2D(axes, light, farfield_pattern, directions='xyz', **kwargs):
-    """
-    Generate polar contour plots of farfield pattern using
-    direction cosines on to the directions provided
-
-    ---Args---
-    axes : 3 matplotlib subplot instances in a list
-    light : light class object
-    farfield_pattern : function to generate farfield pattern
-    directions : directions to plot
-
-    --Kwargs--
-    verbose : verbosity control
-    """
-    N = kwargs.pop("N", 100)
-
-    if not isinstance(axes, Iterable):
-        axes = [axes]
-
-    assert len(axes) == len(directions), "Ambiguous number of axes provided!"
-
-    for j, adir in enumerate(directions):
-        dsdo = farfield_pattern(adir)
-
-        dsdo[isnan(dsdo)] = 0
-        dsdo /= max(dsdo)
-
-        ux, uy = light.direction_cosine(adir)
-
-        plotkwargs = {'N': N, 'zdir': adir, 'levels': linspace(0, 1, N)}
-
-        plotkwargs = dict(plotkwargs.items()+kwargs.items())
-
-        axes[j].set_title(adir)
-        ctf = axes[j].contourf(ux, uy, dsdo,  **plotkwargs)
-
-        cb = axes[j].figure.colorbar(ctf, ax=axes[j], use_gridspec=True, shrink=0.5)
-        cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
-        cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
-
-
-def farfield_direction_cosines_3D(axis, light, farfield_pattern, directions='xyz', **kwargs):
-    """
-    Generate 3 polar contour plots of farfield pattern using
-    direction cosines due to dipole array.
-
-    ---Args---
-    axes : 3 matplotlib subplot instances in a list
-    light : light class object
-    farfield_pattern : function to generate farfield pattern
-    directions : directions to plot
-
-    --Kwargs--
-    verbose : verbosity control
-    """
-    N = kwargs.pop("N", 100)
-
-    if not isinstance(axes, Iterable):
-        axes = [axes]
-
-    assert len(axes) == len(directions), "Ambiguous number of axes provided!"
-
-    for adir in directions:
-        dsdo = farfield_pattern(adir)
-
-        dsdo[isnan(dsdo)] = 0
-        dsdo /= max(dsdo)
-
-        ux, uy = light.direction_cosine(adir)
-
-        plotkwargs = {'N': N, 'zdir' : adir, 'offset' : -1*(-1)**(adir=='y'), 'levels' : linspace(0, 1, N)}
-
-        plotkwargs = dict(plotkwargs.items()+kwargs.items())
-
-        if adir == 'x':
-            axis.contourf(dsdo, ux, uy, **plotkwargs)
-        elif adir == 'y':
-            axis.contourf(ux, dsdo, uy,  **plotkwargs)
-        elif adir == 'z':
-            ctf = axis.contourf(ux, uy, dsdo,  **plotkwargs)
-            cb = axis.figure.colorbar(ctf, ax=axis, use_gridspec=True, shrink=0.5)
-            cb.set_label("Scaled Absolute \nElectric Field Squared", size=15)
-            cb.set_ticks([0, 0.25, 0.5, 0.75, 1])
-
-def farfield_surface_3D(axis, light, farfield_pattern, **kwargs):
+def surface_3D(axis, light, farfield_pattern, **kwargs):
     """
     Farfield pattern plotted in 3D
     """
