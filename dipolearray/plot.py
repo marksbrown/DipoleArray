@@ -38,7 +38,7 @@ def lattice(axis, metasurface, **kwargs):
     divideby = kwargs.pop('divideby', 1e-9)
 
     if verbose > 0:
-        print("Number of Dipoles Generated", ptp(N1) * ptp(N2))
+        print("Number of Dipoles Generated", ptp(metasurface.x_scatterers) * ptp(metasurface.y_scatterers))
 
     X, Y, Z = metasurface.periodic_lattice_positions()
 
