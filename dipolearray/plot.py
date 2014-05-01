@@ -4,7 +4,7 @@ Plotting functions for dipolearray (requires matplotlib >= 1.1.0)
 
 from __future__ import division, print_function
 
-from numpy import ptp, min, max, pi, arccos, arctan2
+from numpy import ptp, min, max, pi, arccos, arctan2, shape
 from numpy import invert, isnan, linspace, log10
 from collections import Iterable
 
@@ -178,15 +178,15 @@ def _add_colorbar(axis, ctf, normalised):
         cb.set_label("Absolute \nElectric Field Squared", size=15)
 
 
-def surface_3D(axis, light, farfield_pattern, **kwargs):
+def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
     """
     Farfield pattern plotted in 3D
     """
 
-    dsdo = farfield_pattern('all')
+    dsdo = farfield_pattern(adir)
     dsdo[isnan(dsdo)] = 0
 
-    direction_vectors = light.calculate_outgoing_vectors('all', amplitudes=dsdo)
+    direction_vectors = light.calculate_outgoing_vectors(adir, amplitudes=dsdo)
 
     maxnum = max(direction_vectors)
     x = direction_vectors[..., 0] / maxnum
