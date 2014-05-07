@@ -183,12 +183,23 @@ def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
     Farfield pattern plotted in 3D
     """
 
+    log_scale = kwargs.pop("log_scale", False)
+    normalised = kwargs.pop("normalised", True)
+
     dsdo = farfield_pattern(adir)
     dsdo[isnan(dsdo)] = 0
 
+    if log_scale:
+        dsdo = log10(dsdo)
+
+
     direction_vectors = light.calculate_outgoing_vectors(adir, amplitudes=dsdo)
 
-    maxnum = max(direction_vectors)
+    if normalised:
+        maxnum = max(direction_vectors)
+    else:
+        maxnum = 1
+
     x = direction_vectors[..., 0] / maxnum
     y = direction_vectors[..., 1] / maxnum
     z = direction_vectors[..., 2] / maxnum
