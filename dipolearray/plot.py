@@ -5,7 +5,7 @@ Plotting functions for dipolearray (requires matplotlib >= 1.1.0)
 from __future__ import division, print_function
 
 from numpy import ptp, min, max, pi, arccos, arctan2, shape
-from numpy import invert, isnan, linspace, log10
+from numpy import invert, isnan, linspace, log10, newaxis
 from collections import Iterable
 
 
@@ -193,7 +193,10 @@ def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
         dsdo = log10(dsdo)
 
 
-    direction_vectors = light.calculate_outgoing_vectors(adir, amplitudes=dsdo)
+
+    direction_vectors = light.outgoing_vectors[adir]*dsdo.T[..., newaxis]
+
+    #direction_vectors = light.calculate_outgoing_vectors(adir, amplitudes=dsdo)
 
     if normalised:
         maxnum = max(direction_vectors)
