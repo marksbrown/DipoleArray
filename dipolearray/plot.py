@@ -143,7 +143,7 @@ def plot_2d(plot_type, axes, light, farfield_pattern, directions='xyz', **kwargs
             plot_kwargs = dict(default_plot_kwargs.items()+kwargs.items())
 
             axes[j].set_title(adir)
-            ctf = axes[j].contourf(ux, uy, dsdo,  **plot_kwargs)
+            ctf = axes[j].contourf(ux, uy, dsdo.T,  **plot_kwargs)
 
             _add_colorbar(axes[j], ctf, normalised)
 
@@ -194,7 +194,7 @@ def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
 
 
 
-    direction_vectors = light.outgoing_vectors[adir]*dsdo.T[..., newaxis]
+    direction_vectors = light.outgoing_vectors[adir]*dsdo[..., newaxis]
 
     #direction_vectors = light.calculate_outgoing_vectors(adir, amplitudes=dsdo)
 

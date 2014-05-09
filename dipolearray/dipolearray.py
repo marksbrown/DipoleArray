@@ -13,32 +13,46 @@ from __future__ import division, print_function
 
 from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray, log10
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis, random
-from numpy import vstack, einsum
+from numpy import vstack, einsum, reshape
 from collections import Iterable
 
 class light(object):
     """
     encapsulates properties relating to incoming and outgoing plane waves
     """
-    def __init__(self, k, n0=array([0,0,1]), steptheta=400, stepphi=200, incident_polarisation=None):
+    def __init__(self, k, incident_vector=array([0 , 0, 1]),
+                 outgoing_vectors='x y z all',
+                 steptheta=400, stepphi=200,
+                 incident_polarisation=None,
+                 method='ordered'):
+
         self.k = k
         self.steptheta = steptheta
         self.stepphi = stepphi
-        self.incoming_vector = n0
-        self.outgoing_vectors = {adir : self.calculate_outgoing_vectors(adir) for adir in ['x', 'y', 'z', 'all']}
+        self.incoming_vector = incident_vector
+
+        self.outgoing_vectors = {adir : self.calculate_outgoing_vectors(adir, method=method)
+                                 for adir in outgoing_vectors.split()}
+
         if isinstance(incident_polarisation, Iterable):
             self.incident_polarisation = incident_polarisation
         else:
-            self.incident_polarisation = {adir : self.orthogonal_incident_polarisations(adir) for adir in ['x', 'y', 'z', 'all']}
+            self.incident_polarisation = {adir : self.orthogonal_incident_polarisations(adir)
+                                          for adir in outgoing_vectors.split()}
 
         self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in ['x', 'y', 'z', 'all']}
 
-    def calculate_outgoing_vectors(self, adir, amplitudes=1):
+    def calculate_outgoing_vectors(self, adir, amplitudes=1, method='ordered'):
         """
         Calculates 2D grid of outgoing vectors
         """
-        theta, phi = angles_of_hemisphere(adir, self.steptheta, self.stepphi)
-        return radial_direction_vector(theta, phi, amplitudes)
+
+        if method == 'ordered':
+            theta, phi = angles_of_hemisphere(adir, self.steptheta, self.stepphi)
+            return radial_direction_vector(theta, phi, amplitudes)
+        elif method == 'random':
+            return reshape(amplitudes*random_points_on_a_sphere(self.steptheta*self.stepphi, adir),
+                (self.steptheta, self.stepphi, 3))
 
     def orthogonal_incident_polarisations(self, adir):
         """
@@ -65,22 +79,19 @@ class light(object):
 
     def direction_cosine(self, adir):
         """
-        Direction cosines for cartesian unit vector 'x', 'y' or 'z' defined
-        for theta and phi using _AnglesOfHemisphere_
+        Direction cosines for cartesian unit vector 'x', 'y' or 'z'
         """
-        theta, phi = angles_of_hemisphere(adir, self.steptheta, self.stepphi)
 
-        if adir == "x":
-            return sin(phi) * sin(theta), cos(theta)  # y,z
-        elif adir == "y":
-            return cos(phi) * sin(theta), cos(theta)  # x,z
-        elif adir == "z":
-            return cos(phi) * sin(theta), sin(phi) * sin(theta)  # x,y
-        elif adir == "all":
-            return cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta)
+        if adir == 'x':
+            i, j = 1, 2
+        elif adir == 'y':
+            i, j = 0, 2
+        elif adir== 'z':
+            i, j = 0, 1
         else:
-            print("None Selected")
-            return
+            raise KeyError, "direction not used or defined"
+
+        return self.outgoing_vectors[adir][..., i], self.outgoing_vectors[adir][..., j]
 
 class metasurface(object):
     """
@@ -370,10 +381,14 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False
         return eccentricity, alpha
 
 
-def isotropic_vectors(N, hemisphere=True):
+def random_points_on_a_sphere(N, adir):
     """
-    Generates random points on a sphere
-    or on a hemisphere (default is sphere)
+    Generate N uniforms points on a hemisphere/sphere
+    adir : outcome
+    'x' : +ve x hemisphere
+    'y' : +ve y hemisphere
+    'z' : +ve z hemisphere
+    'all' : full sphere
     """
     Values = []
 
@@ -381,12 +396,20 @@ def isotropic_vectors(N, hemisphere=True):
         x1 = 2 * random.random() - 1
         x2 = 2 * random.random() - 1
 
-        if hemisphere:
-            if (x1 ** 2 + x2 ** 2 < 1) and (x1 ** 2 + x2 ** 2 < 0.5):
-                Values.append((x1, x2))
-        else:
-            if x1 ** 2 + x2 ** 2 < 1:
-                Values.append((x1, x2))
+        if (x1 ** 2 + x2 ** 2 > 1):
+            continue
+
+        if adir == 'x' and x1 >=0:
+            Values.append((x1, x2))
+
+        if adir == 'y' and x2 >=0:
+            Values.append((x1, x2))
+
+        if adir == 'z' and (x1 ** 2 + x2 ** 2 < 0.5):
+            Values.append((x1, x2))
+
+        if adir == 'all':
+            Values.append((x1, x2))
 
     x1, x2 = zip(*Values)
     x1 = array(x1)
@@ -403,7 +426,7 @@ def hemisphere_segment(N, mintheta=0, maxtheta=pi/6, verbose=0):
     """
 
     while True:
-        ListOfDirections = isotropic_vectors(N)
+        ListOfDirections = random_points_on_a_sphere(N, 'all')
 
         mincondition = ListOfDirections[..., 2] < cos(mintheta)
         maxcondition = ListOfDirections[..., 2] > cos(maxtheta)

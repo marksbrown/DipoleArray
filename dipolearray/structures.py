@@ -30,7 +30,9 @@ def structure_factor_plane_wave(light, metasurface, **kwargs):
     verbose = kwargs.pop('verbose', 0)
 
     def structure_factor(adir):
-        n1 = light.outgoing_vectors[adir]
+        """
+        Calculate the structure factor in the direction adir
+        """
 
         return metasurface.structure_factor(adir, light, dist, verbose).T
 
@@ -61,11 +63,7 @@ def electric_dipole(light, p, verbose=0):
 
         mag = lambda mat: sum(mat * conj(mat), axis=-1)
 
-        if verbose > 0:
-            a_dipole = real(constant_term * mag(a)).T
-            print("max dipole moment is {}\nmean dipole moment is {}\nwith standard deviation {}".format(max(a_dipole), mean(a_dipole), std(a_dipole)))
-
-        return real(constant_term * mag(a)).T
+        return real(constant_term * mag(a))
 
     return farfield_pattern
 
@@ -113,13 +111,9 @@ def differential_scattering_cross_section(light, metasurface, **kwargs):
         induced_dipole_one = metasurface.induced_dipole_moment(epsilon_1)
         induced_dipole_two = metasurface.induced_dipole_moment(epsilon_2)
 
-        if verbose > 0:
-            for a_dipole in [induced_dipole_one, induced_dipole_two]:
-                print("max dipole moment is {}\nmean dipole moment is {}\nwith standard deviation {}".format(max(a_dipole), mean(a_dipole), std(a_dipole)))
-
         F = metasurface.structure_factor(adir, light, dist=dist, verbose=verbose)
 
-        return (sum(constant_term * (induced_dipole_one ** 2 + dot(n1, n0)[..., newaxis] ** 2 *induced_dipole_two ** 2), axis=-1) *F).T
+        return (sum(constant_term * (induced_dipole_one ** 2 + dot(n1, n0)[..., newaxis] ** 2 *induced_dipole_two ** 2), axis=-1) *F)
 
     return farfield_pattern
 
@@ -151,10 +145,10 @@ def differential_scattering_cross_section_polarised(light, metasurface, out=2, *
         F = metasurface.structure_factor(adir, light, n1, dist=dist, verbose=verbose)
 
         if out==0:
-            return (sum(constant_term * (dot(epsilon_1,induced_dipole)**2)**2) * F).T
+            return (sum(constant_term * (dot(epsilon_1,induced_dipole)**2)**2) * F)
         elif out==1:
-            return (sum(constant_term * (dot(epsilon_2,induced_dipole)**2)**2) * F).T
+            return (sum(constant_term * (dot(epsilon_2,induced_dipole)**2)**2) * F)
         if out ==2:
-            return (sum(constant_term * (dot(epsilon_1,induced_dipole)**2+dot(epsilon_1,induced_dipole)**2)) * F).T
+            return (sum(constant_term * (dot(epsilon_1,induced_dipole)**2+dot(epsilon_1,induced_dipole)**2)) * F)
 
     return farfield_pattern
