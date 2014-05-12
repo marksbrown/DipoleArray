@@ -2,7 +2,7 @@
 Metrics and functionality for optimising the reflection metasurface
 """
 
-from numpy import pi, arccos, arctan2
+from numpy import pi, arccos, arctan2, sum
 
 Degrees = pi/180
 
@@ -25,7 +25,6 @@ def proportion_within_segment(farfield, vectors, polar_range=None, azimuthal_ran
         if verbose > 0:
             print("minimum phi is {}\nmaximum phi is {}\n".format(min(phi)/Degrees, max(phi)/Degrees))
 
-        (phi >= azimuthal_range[0]) & (phi <= azimuthal_range[1])
         condition &= (phi >= azimuthal_range[0]) & (phi <= azimuthal_range[1])
 
     return sum(farfield[condition])/sum(farfield)

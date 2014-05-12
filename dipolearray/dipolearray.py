@@ -20,7 +20,7 @@ class light(object):
     """
     encapsulates properties relating to incoming and outgoing plane waves
     """
-    def __init__(self, k, incident_vector=array([0 , 0, 1]),
+    def __init__(self, k, incident_vector=array([0, 0, 1]),
                  outgoing_vectors='x y z all',
                  steptheta=400, stepphi=200,
                  incident_polarisation=None,
@@ -40,7 +40,7 @@ class light(object):
             self.incident_polarisation = {adir : self.orthogonal_incident_polarisations(adir)
                                           for adir in outgoing_vectors.split()}
 
-        self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in ['x', 'y', 'z', 'all']}
+        self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in outgoing_vectors.split()}
 
     def calculate_outgoing_vectors(self, adir, amplitudes=1, method='ordered'):
         """
