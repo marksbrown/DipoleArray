@@ -37,7 +37,7 @@ class light(object):
         if isinstance(incident_polarisation, Iterable):
             self.incident_polarisation = incident_polarisation
         else:
-            self.incident_polarisation = {adir : self.orthogonal_incident_polarisations(adir)
+            self.incident_polarisation = {adir: self.orthogonal_incident_polarisations(adir)
                                           for adir in outgoing_vectors.split()}
 
         self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in outgoing_vectors.split()}
@@ -272,7 +272,7 @@ def polarisability_sphere(epsilon, epsilon_media, a):
     return 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
 
 
-def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False, verbose=0):
+def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=False, verbose=0):
     """
     Polarisability tensor of spheroid aligned in z
 
@@ -375,10 +375,10 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False
         alpha[1::3, 1][sphere_condition] = sphere_alpha
         alpha[2::3, 2][sphere_condition] = sphere_alpha
 
-    if with_geometry:
+    if with_properties:
         return geometry_factor, eccentricity, alpha
     else:
-        return eccentricity, alpha
+        return alpha
 
 
 def random_points_on_a_sphere(N, adir):
