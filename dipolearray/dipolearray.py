@@ -21,7 +21,7 @@ class light(object):
     encapsulates properties relating to incoming and outgoing plane waves
     """
     def __init__(self, k, incident_vector=array([0, 0, 1]),
-                 outgoing_vectors='x y z all',
+                 directions='x y z all',
                  steptheta=400, stepphi=200,
                  incident_polarisation=None,
                  method='ordered'):
@@ -31,16 +31,19 @@ class light(object):
         self.stepphi = stepphi
         self.incoming_vector = incident_vector
 
-        self.outgoing_vectors = {adir : self.calculate_outgoing_vectors(adir, method=method)
-                                 for adir in outgoing_vectors.split()}
+        self.outgoing_vectors = {adir: self.calculate_outgoing_vectors(adir, method=method)
+                                 for adir in directions.split()}
+
+        self.theta = {adir: arccos(self.outgoing_vectors[adir][..., 2]) for adir in directions.split()}
+        self.phi = {adir: arctan2(self.outgoing_vectors[adir][..., 1], self.outgoing_vectors[adir][..., 0]) for adir in directions.split()}
 
         if isinstance(incident_polarisation, Iterable):
             self.incident_polarisation = incident_polarisation
         else:
             self.incident_polarisation = {adir: self.orthogonal_incident_polarisations(adir)
-                                          for adir in outgoing_vectors.split()}
+                                          for adir in directions.split()}
 
-        self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in outgoing_vectors.split()}
+        self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in directions.split()}
 
     def calculate_outgoing_vectors(self, adir, amplitudes=1, method='ordered'):
         """
