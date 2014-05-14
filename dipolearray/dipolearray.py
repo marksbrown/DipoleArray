@@ -304,7 +304,8 @@ def polarisability_sphere(epsilon, epsilon_media, a):
     """
     Polarisability tensor of a sphere
     """
-    return 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
+    eps0 = 8.85418782E-12  # permittivity of free space
+    return eps0 * 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
 
 
 def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=False, verbose=0):
@@ -410,10 +411,12 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=Fal
         alpha[1::3, 1][sphere_condition] = sphere_alpha
         alpha[2::3, 2][sphere_condition] = sphere_alpha
 
+
+    eps0 = 8.85418782E-12  # permittivity of free space
     if with_properties:
-        return geometry_factor, eccentricity, alpha
+        return geometry_factor, eccentricity, eps0 * alpha
     else:
-        return alpha
+        return eps0 * alpha
 
 
 def random_points_on_a_sphere(N, adir):
