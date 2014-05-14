@@ -6,7 +6,7 @@ from __future__ import division, print_function
 
 from matplotlib import cm
 from matplotlib.mlab import griddata
-from numpy import ptp, min, max, pi, arccos, arctan2, shape
+from numpy import ptp, min, max, pi, arccos, arctan2, shape, real
 from numpy import invert, isnan, linspace, log10, newaxis
 from collections import Iterable
 
@@ -108,6 +108,8 @@ def plot_2d(plot_type, axes, light, farfield_pattern, directions='xyz', **kwargs
             default_plot_kwargs = {'levels': linspace(0, max(dsdo), N)}
 
 
+        dsdo = real(dsdo)
+
         if plot_type == 'polar':
 
             assert len(axes) == len(directions), "Ambiguous number of axes provided!"
@@ -193,6 +195,8 @@ def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
 
     if log_scale:
         dsdo = log10(dsdo)
+
+    dsdo = real(dsdo)
 
     direction_vectors = light.outgoing_vectors[adir]*dsdo[..., newaxis]
 
