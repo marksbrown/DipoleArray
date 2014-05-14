@@ -34,7 +34,7 @@ def structure_factor_plane_wave(light, metasurface, **kwargs):
         Calculate the structure factor in the direction adir
         """
 
-        return metasurface.structure_factor(adir, light, dist, verbose).T
+        return metasurface.structure_factor(adir, light, dist, verbose)
 
     return structure_factor
 
@@ -165,6 +165,24 @@ def differential_scattering_cross_section(light, metasurface, **kwargs):
         return (sum(constant_term * (induced_dipole_one * conj(induced_dipole_one) + dot(n1, n0)[..., newaxis] ** 2 *induced_dipole_two * conj(induced_dipole_two)), axis=-1) *F)
 
     return farfield_pattern
+
+def total_scattering_cross_section(light, farfield, **kwargs):
+    """
+    Differential scattering cross section for induced dipole moment due to unpolarised light
+
+    adir : x, y, z, all
+    n0 : incident direction
+    p : dipole moment
+    k : wavenumber
+    metasurface : object defining the metasurface
+    """
+
+    dsdo = farfield('all')
+    theta = light.theta['all']
+    dtheta = pi / light.steptheta
+    dphi = (2 * pi) / light.stepphi
+
+    return sum(dsdo * sin(theta) * dtheta * dphi)
 
 def differential_scattering_cross_section_polarised(light, metasurface, out=2, **kwargs):
     """
