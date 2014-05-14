@@ -108,6 +108,30 @@ def induced_dipole_moments(light, metasurface, **kwargs):
 
     return farfield_pattern
 
+def total_dipole_power(light, metasurface, **kwargs):
+    """
+    Calculates the induced dipole moments for unpolarised incident light
+    """
+
+    verbose = kwargs.pop('verbose', 0)
+
+    def farfield_pattern(adir):
+
+        if verbose > 0:
+            print("direction : {}".format(adir))
+
+        epsilon_1, epsilon_2 = light.incident_polarisation[adir]
+
+        if verbose > 0:
+            print("shape of first is {}\nshape of second is {}".format(shape(epsilon_1), shape(epsilon_2)))
+
+        total_dipole_one = metasurface.total_dipole_power(epsilon_1, light.k)
+        total_dipole_two = metasurface.total_dipole_power(epsilon_2, light.k)
+
+        return total_dipole_one, total_dipole_two
+
+    return farfield_pattern
+
 def differential_scattering_cross_section(light, metasurface, **kwargs):
     """
     Differential scattering cross section for induced dipole moment due to unpolarised light
@@ -138,7 +162,7 @@ def differential_scattering_cross_section(light, metasurface, **kwargs):
 
         F = metasurface.structure_factor(adir, light, dist=dist, verbose=verbose)
 
-        return (sum(constant_term * (induced_dipole_one ** 2 + dot(n1, n0)[..., newaxis] ** 2 *induced_dipole_two ** 2), axis=-1) *F)
+        return (sum(constant_term * (induced_dipole_one * conj(induced_dipole_one) + dot(n1, n0)[..., newaxis] ** 2 *induced_dipole_two * conj(induced_dipole_two)), axis=-1) *F)
 
     return farfield_pattern
 
