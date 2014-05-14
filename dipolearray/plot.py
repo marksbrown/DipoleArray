@@ -145,7 +145,7 @@ def plot_2d(plot_type, axes, light, farfield_pattern, directions='xyz', **kwargs
             plot_kwargs = dict(default_plot_kwargs.items()+kwargs.items())
 
             axes[j].set_title(adir)
-            ctf = axes[j].contourf(ux, uy, dsdo.T,  **plot_kwargs)
+            ctf = axes[j].contourf(ux, uy, dsdo,  **plot_kwargs)
 
             _add_colorbar(axes[j], ctf, normalised)
 
@@ -194,8 +194,6 @@ def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
     if log_scale:
         dsdo = log10(dsdo)
 
-
-
     direction_vectors = light.outgoing_vectors[adir]*dsdo[..., newaxis]
 
     #direction_vectors = light.calculate_outgoing_vectors(adir, amplitudes=dsdo)
@@ -213,7 +211,7 @@ def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
 
     _to_cube(axis)
 
-def plot_irregular_data_from_sphere(axis, amplitudes, incident_vectors, **kwargs):
+def plot_irregular_data_from_sphere(axis, amplitudes, vectors, **kwargs):
     """
     Plots irregular data onto contour plot
     """
@@ -226,8 +224,8 @@ def plot_irregular_data_from_sphere(axis, amplitudes, incident_vectors, **kwargs
     plot_kwargs = {'alpha': 0.5, 'cmap': cm.cubehelix}
     plot_kwargs.update(kwargs)
 
-    theta = arccos(incident_vectors[..., 2])
-    phi = arctan2(incident_vectors[..., 1], incident_vectors[..., 0])
+    theta = arccos(vectors[..., 2])
+    phi = arctan2(vectors[..., 1], vectors[..., 0])
 
     theta_grid = linspace(0, 90*Degrees, 100)
     phi_grid = linspace(-180*Degrees, 180*Degrees, 100)
