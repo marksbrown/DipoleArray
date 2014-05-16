@@ -83,6 +83,31 @@ def electric_dipole_sum(light, P):
 
     return farfield_pattern
 
+
+def induced_dipole_moments(light, metasurface, **kwargs):
+    """
+    Calculates the induced dipole moments for unpolarised incident light
+    """
+
+    verbose = kwargs.pop('verbose', 0)
+
+    def farfield_pattern(adir):
+
+        if verbose > 0:
+            print("direction : {}".format(adir))
+
+        epsilon_1, epsilon_2 = light.incident_polarisation[adir]
+
+        if verbose > 0:
+            print("shape of first is {}\nshape of second is {}".format(shape(epsilon_1), shape(epsilon_2)))
+
+        induced_dipole_one = metasurface.induced_dipole_moment(epsilon_1)
+        induced_dipole_two = metasurface.induced_dipole_moment(epsilon_2)
+
+        return induced_dipole_one, induced_dipole_two
+
+    return farfield_pattern
+
 def differential_scattering_cross_section(light, metasurface, **kwargs):
     """
     Differential scattering cross section for induced dipole moment due to unpolarised light

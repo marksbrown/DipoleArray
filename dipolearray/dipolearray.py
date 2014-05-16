@@ -20,8 +20,8 @@ class light(object):
     """
     encapsulates properties relating to incoming and outgoing plane waves
     """
-    def __init__(self, k, incident_vector=array([0 , 0, 1]),
-                 outgoing_vectors='x y z all',
+    def __init__(self, k, incident_vector=array([0, 0, 1]),
+                 directions='x y z all',
                  steptheta=400, stepphi=200,
                  incident_polarisation=None,
                  method='ordered'):
@@ -31,16 +31,19 @@ class light(object):
         self.stepphi = stepphi
         self.incoming_vector = incident_vector
 
-        self.outgoing_vectors = {adir : self.calculate_outgoing_vectors(adir, method=method)
-                                 for adir in outgoing_vectors.split()}
+        self.outgoing_vectors = {adir: self.calculate_outgoing_vectors(adir, method=method)
+                                 for adir in directions.split()}
+
+        self.theta = {adir: arccos(self.outgoing_vectors[adir][..., 2]) for adir in directions.split()}
+        self.phi = {adir: arctan2(self.outgoing_vectors[adir][..., 1], self.outgoing_vectors[adir][..., 0]) for adir in directions.split()}
 
         if isinstance(incident_polarisation, Iterable):
             self.incident_polarisation = incident_polarisation
         else:
-            self.incident_polarisation = {adir : self.orthogonal_incident_polarisations(adir)
-                                          for adir in outgoing_vectors.split()}
+            self.incident_polarisation = {adir: self.orthogonal_incident_polarisations(adir)
+                                          for adir in directions.split()}
 
-        self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in ['x', 'y', 'z', 'all']}
+        self.outgoing_polarisation = {adir : self.orthogonal_polarisations(adir) for adir in directions.split()}
 
     def calculate_outgoing_vectors(self, adir, amplitudes=1, method='ordered'):
         """
@@ -272,7 +275,7 @@ def polarisability_sphere(epsilon, epsilon_media, a):
     return 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
 
 
-def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False, verbose=0):
+def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=False, verbose=0):
     """
     Polarisability tensor of spheroid aligned in z
 
@@ -375,10 +378,10 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_geometry=False
         alpha[1::3, 1][sphere_condition] = sphere_alpha
         alpha[2::3, 2][sphere_condition] = sphere_alpha
 
-    if with_geometry:
+    if with_properties:
         return geometry_factor, eccentricity, alpha
     else:
-        return eccentricity, alpha
+        return alpha
 
 
 def random_points_on_a_sphere(N, adir):

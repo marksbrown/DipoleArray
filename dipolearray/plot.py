@@ -4,6 +4,8 @@ Plotting functions for dipolearray (requires matplotlib >= 1.1.0)
 
 from __future__ import division, print_function
 
+from matplotlib import cm
+from matplotlib.mlab import griddata
 from numpy import ptp, min, max, pi, arccos, arctan2, shape
 from numpy import invert, isnan, linspace, log10, newaxis
 from collections import Iterable
@@ -210,6 +212,42 @@ def surface_3d(axis, light, farfield_pattern, adir='all', **kwargs):
     axis.plot_surface(x, y, z, **kwargs)
 
     _to_cube(axis)
+
+def plot_irregular_data_from_sphere(axis, amplitudes, vectors, **kwargs):
+    """
+    Plots irregular data onto contour plot
+    """
+    Degrees = pi/180
+
+    N = kwargs.pop("N", 10)
+    normalised = kwargs.pop("normalised", True)
+    verbose = kwargs.pop("verbose", 0)
+
+    plot_kwargs = {'alpha': 0.5, 'cmap': cm.cubehelix}
+    plot_kwargs.update(kwargs)
+
+    theta = arccos(vectors[..., 2])
+    phi = arctan2(vectors[..., 1], vectors[..., 0])
+
+    theta_grid = linspace(0, 90*Degrees, 100)
+    phi_grid = linspace(-180*Degrees, 180*Degrees, 100)
+
+    Z = griddata(phi, theta, amplitudes, phi_grid, theta_grid)
+
+    axis.scatter(phi/Degrees, theta/Degrees, s=1, color='k')
+    ctf = axis.contourf(phi_grid/Degrees, theta_grid/Degrees, Z, N, **plot_kwargs)
+
+    cb = axis.figure.colorbar(ctf, ax=axis, label="metric")
+
+    if normalised:
+        cb.set_ticks(linspace(0, 1, 5))
+
+    axis.set_xlabel("Phi (Degrees)")
+    axis.set_ylabel("Theta (Degrees)")
+
+    axis.set_xlim(-180, 180)
+    axis.set_ylim(0, 90)
+
 
 
 def _to_cube(axis, cube_edge=1, size=20):
