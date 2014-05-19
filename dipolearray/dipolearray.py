@@ -176,6 +176,25 @@ class metasurface(object):
         except ValueError:
             return einsum('ij,...klj->...kli', self.alpha, E0)
 
+
+    def total_dipole_power(self, E0, k):
+        """
+        Calculates the total power emitted from a given induced dipole moment
+        """
+
+
+        p = self.induced_dipole_moment(E0)
+        p = einsum('...l->...', p*conj(p))
+
+        mu0 = 4 * pi * 1e-7  # Permeability of free space
+        eps0 = 8.85418782E-12  # permittivity of free space
+        Zzero = sqrt(mu0 / eps0)  # Impedance of free space
+        c = 3E8  # speed of light
+
+        constant_term = ((c**2 * Zzero * k ** 4) / (12 * pi))
+
+        return constant_term * p
+
     def periodic_lattice_positions(self):
         """
         Returns cartesian position of an array of points defined by the lattice
@@ -268,11 +287,25 @@ def angles_of_hemisphere(adir, steptheta=400, stepphi=400, meshed=True):
         return Theta, Phi
 
 
+def total_scattering_cross_section_analytical(epsilon, a, k, type='metallic'):
+    """
+    Calculates the total scattering cross section for electric dipole scattering
+    by a small dielectric sphere
+    """
+
+    if type == 'dielectric':
+        term = (epsilon - 1) / (epsilon + 2)
+        return (8 * pi) / 3 * k ** 4 * a ** 6 * term * conj(term)
+    elif type == 'metallic':
+        return (10 * pi * k ** 4 * a ** 6) / 3
+
+
 def polarisability_sphere(epsilon, epsilon_media, a):
     """
     Polarisability tensor of a sphere
     """
-    return 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
+    eps0 = 8.85418782E-12  # permittivity of free space
+    return eps0 * 4*pi*a**3*(epsilon-epsilon_media)/(epsilon+2*epsilon_media)
 
 
 def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=False, verbose=0):
@@ -300,15 +333,15 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=Fal
     if argmax(arr_shapes) == 0:
         geometry_factor = 1/3 * ones(shape(a))
         eccentricity = zeros(shape(a))
-        alpha = tile(eye(3), shape(a)).T
+        alpha = tile(eye(3, dtype=complex), shape(a)).T
     if argmax(arr_shapes) == 1:
         geometry_factor = 1/3 * ones(shape(b))
         eccentricity = zeros(shape(b))
-        alpha = tile(eye(3), shape(b)).T
+        alpha = tile(eye(3, dtype=complex), shape(b)).T
     if argmax(arr_shapes) == 2:
         geometry_factor = 1/3 * ones(shape(c))
         eccentricity = zeros(shape(c))
-        alpha = tile(eye(3), shape(c)).T
+        alpha = tile(eye(3, dtype=complex), shape(c)).T
 
     if verbose > 0:
         print("alpha is of shape {}".format(shape(alpha)))
@@ -378,10 +411,12 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=Fal
         alpha[1::3, 1][sphere_condition] = sphere_alpha
         alpha[2::3, 2][sphere_condition] = sphere_alpha
 
+
+    eps0 = 8.85418782E-12  # permittivity of free space
     if with_properties:
-        return geometry_factor, eccentricity, alpha
+        return geometry_factor, eccentricity, eps0 * alpha
     else:
-        return alpha
+        return eps0 * alpha
 
 
 def random_points_on_a_sphere(N, adir):
