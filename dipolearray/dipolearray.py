@@ -37,6 +37,9 @@ class light(object):
         self.theta = {adir: arccos(self.outgoing_vectors[adir][..., 2]) for adir in directions.split()}
         self.phi = {adir: arctan2(self.outgoing_vectors[adir][..., 1], self.outgoing_vectors[adir][..., 0]) for adir in directions.split()}
 
+        normalize_phi = lambda phi : where(phi < 0, phi+2*pi, phi)
+        self.phi = {adir : normalize_phi(self.phi[adir]) for adir in self.phi}
+
         if isinstance(incident_polarisation, Iterable):
             self.incident_polarisation = incident_polarisation
         else:
