@@ -13,7 +13,7 @@ from __future__ import division, print_function
 
 from numpy import cross, conj, ones, sqrt, linspace, arccos, arctan, arctan2, subtract, where, eye, argmax, ndarray, log10
 from numpy import meshgrid, cos, sin, pi, exp, real, array, dot, shape, sum, zeros, ptp, log, product, tile, newaxis, random
-from numpy import vstack, einsum, reshape
+from numpy import vstack, einsum, reshape, tan
 from collections import Iterable
 
 class light(object):
@@ -422,7 +422,7 @@ def polarisability_spheroid(epsilon, epsilon_media, a, b, c, with_properties=Fal
         return eps0 * alpha
 
 
-def random_points_on_a_sphere(N, adir):
+def random_points_on_a_sphere(N, adir='z'):
     """
     Generate N uniforms points on a hemisphere/sphere
     adir : outcome
@@ -462,26 +462,71 @@ def random_points_on_a_sphere(N, adir):
     return array((x,y,z)).T
 
 
-def uniform_angle_segment(N, theta=(0, pi/6), phi=None, verbose=0):
+def uniform_angle_segment(N, theta=(0, pi/6), phi=None, verbose=0, max_iterations=100):
     """
     Returns N directions from sphere point picking within theta and phi ranges only
     """
 
-    if phi is None:
-        return hemisphere_segment(N, *theta)
-    else:
-        return None
+    if theta is None and phi is None:
+        return random_points_on_a_sphere(N, 'z')
 
-def hemisphere_segment(N, mintheta=0, maxtheta=pi/6, verbose=0):
+    if phi is None:
+        return hemisphere_segment(N, theta)
+
+    min_theta = min(theta)
+    max_theta = max(theta)
+
+    min_phi = min(phi)
+    max_phi = max(phi)
+
+    for _ in xrange(max_iterations):
+
+        ListOfDirections = random_points_on_a_sphere(N, 'all')
+
+        phi = arctan2(ListOfDirections[..., 1], ListOfDirections[..., 0])
+        phi[phi < 0] += 2*pi
+
+        min_phi_condition = phi > min_phi
+        max_phi_condition = phi < max_phi
+
+        min_theta_condition = ListOfDirections[..., 2] < cos(min_theta)
+        max_theta_condition = ListOfDirections[..., 2] > cos(max_theta)
+
+
+        min_condition = min_phi_condition & min_theta_condition
+        max_condition = max_phi_condition & max_theta_condition
+
+        try:  # matching directions aren't wasted when we generate more
+            AllowedDirections = vstack((AllowedDirections,
+                                        ListOfDirections[min_condition & max_condition]))
+        except UnboundLocalError:
+            AllowedDirections = ListOfDirections[min_condition & max_condition]
+
+        if verbose > 0:
+            print("Additional matching is", sum(min_condition & max_condition))
+            print("Total is now", len(AllowedDirections))
+            print("Shape of AllowDirections is", shape(AllowedDirections))
+
+        if len(AllowedDirections) < N:
+            continue
+        else:
+            return AllowedDirections[:N]
+
+    return None
+
+def hemisphere_segment(N, theta, verbose=0):
     """
     Returns N directions from sphere point picking (Marsaglia 1972)
     """
 
+    min_theta = min(theta)
+    max_theta = max(theta)
+
     while True:
         ListOfDirections = random_points_on_a_sphere(N, 'all')
 
-        mincondition = ListOfDirections[..., 2] < cos(mintheta)
-        maxcondition = ListOfDirections[..., 2] > cos(maxtheta)
+        mincondition = ListOfDirections[..., 2] < cos(min_theta)
+        maxcondition = ListOfDirections[..., 2] > cos(max_theta)
 
         try:  # matching directions aren't wasted when we generate more
             AllowedDirections = vstack((AllowedDirections,
