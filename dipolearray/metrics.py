@@ -2,29 +2,21 @@
 Metrics and functionality for optimising the reflection metasurface
 """
 
-from numpy import pi, arccos, arctan2, sum
+from numpy import pi, arccos, arctan2, sum, cos, shape, real
 
 Degrees = pi/180
 
 
-def proportion_within_segment(farfield, vectors, polar_range=None, azimuthal_range=None, verbose=0):
+def proportion_within_segment(outgoing_vectors, farfield, polar_range=None):
     """
-    Calculates the sum of farfield within the polar range and azimuthal ranges
+    Calculates the sum of farfield within the polar range
     """
 
-    theta = arccos(vectors[..., 2])
+    min_theta = min(polar_range)
+    max_theta = max(polar_range)
 
-    if verbose > 0:
-        print("minimum theta is {}\nmaximum theta is {}\n".format(min(theta)/Degrees, max(theta)/Degrees))
+    min_condition = outgoing_vectors[..., 2] < cos(min_theta)
+    max_condition = outgoing_vectors[..., 2] > cos(max_theta)
+    condition = min_condition & max_condition
 
-    condition = (theta >= polar_range[0]) & (theta <= polar_range[1])
-
-    if azimuthal_range is not None:
-        phi = arctan2(vectors[..., 1], vectors[..., 0])
-
-        if verbose > 0:
-            print("minimum phi is {}\nmaximum phi is {}\n".format(min(phi)/Degrees, max(phi)/Degrees))
-
-        condition &= (phi >= azimuthal_range[0]) & (phi <= azimuthal_range[1])
-
-    return sum(farfield[condition])/sum(farfield)
+    return real(sum(farfield[condition])/sum(farfield))
